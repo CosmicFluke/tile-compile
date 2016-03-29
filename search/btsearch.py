@@ -1,4 +1,4 @@
-from tilecsp.cspbase import *
+from csp.cspbase import *
 
 
 class BacktrackingSearch:
