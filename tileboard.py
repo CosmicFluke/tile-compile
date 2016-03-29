@@ -1,4 +1,4 @@
-from cspbase import *
+from tilecsp.cspbase import *
 
 
 class TileBoard(CSP):

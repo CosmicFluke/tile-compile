@@ -66,7 +66,7 @@ propagator == a function with the following template
 from collections.abc import Iterable, Sequence
 
 # A2 CSP API
-from cspbase import *
+from tilecsp.cspbase import *
 
 
 def prop_BT(csp, newVar=None):
