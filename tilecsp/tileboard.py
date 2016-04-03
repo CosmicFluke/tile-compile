@@ -1,4 +1,4 @@
-from .cspbase import *
+from csp.cspbase import *
 
 
 class TileBoard(CSP):
@@ -24,7 +24,8 @@ class TileBoard(CSP):
         self.name = name
         self.tiles = tiles
         self.dimensions = dim
-        self.tile_positions = create_board(self.dimensions, self.tiles)
+        tile_positions = create_board(self.dimensions, self.tiles)
+        CSP.__init__(self, name, tile_positions)
 
     def set_tile_position(self, tile):
         pass
@@ -33,7 +34,7 @@ class TileBoard(CSP):
         pass
 
     def get_total_num_tiles(self):
-        pass
+        return len(self.tiles)
 
     def get_num_tiles_left(self):
         pass
@@ -44,7 +45,6 @@ class Tile:
     def __init__(self, id, orientation):
         self.id = id
         self.orientation = orientation
-
 
 
 def create_board(dim, tiles):
@@ -58,4 +58,4 @@ def create_board(dim, tiles):
         being the tiles array
     '''
 
-    return [[Variable('V' + str((i, j)), tiles) for i in range(dim)] for j in range(dim)]
+    return [Variable('V' + str((i, j)), tiles) for i in range(dim) for j in range(dim)]
