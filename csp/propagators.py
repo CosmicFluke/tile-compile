@@ -87,7 +87,7 @@ def prop_BT(csp, newVar=None):
     if not newVar:
         return True, []
     for c in csp.get_cons_with_var(newVar):
-        if c.get_n_unasgn() == 0:
+        if c.get_num_unassigned() == 0:
             vals = []
             vars = c.get_scope()
             for var in vars:
@@ -149,16 +149,16 @@ def prop_fc(csp: CSP, newVar: Variable=None) -> \
     filtered_constraints = \
         sorted(
             filter(
-                lambda c: c.get_n_unasgn() == 1,
+                lambda c: c.get_num_unassigned() == 1,
                 constraints),
-            key=lambda c: c.get_unasgn_vars()[0].cur_domain_size()
+            key=lambda c: c.get_unassigned_vars()[0].get_cur_domain_size()
         )
     """ :type: filter[Constraint] """
 
     for constraint in filtered_constraints:
-        var = constraint.get_unasgn_vars()[0]
+        var = constraint.get_unassigned_vars()[0]
         ''' :type: Variable '''
-        for value in var.cur_domain():
+        for value in var.get_cur_domain():
             var.assign(value)
             # Begin FCCheck
             if not constraint.check(map(
@@ -168,7 +168,7 @@ def prop_fc(csp: CSP, newVar: Variable=None) -> \
                 pruned.append((var, value))
             # End FCCheck
             var.unassign()
-        if var.cur_domain_size() == 0:
+        if var.get_cur_domain_size() == 0:
             # Domain wipe out
             return False, pruned
     return True, list(set(pruned))
@@ -311,14 +311,14 @@ def prop_gac(csp: CSP, newVar: Variable=None) -> \
 
     # Enqueue all constraints to the GAC Queue
     # Sort constraints by number of unassigned variables (increasing)
-    gac_queue = GACQueue(sorted(constraints, key=lambda c: c.get_n_unasgn()))
+    gac_queue = GACQueue(sorted(constraints, key=lambda c: c.get_num_unassigned()))
     # GAC Enforce
     while gac_queue:
         constraint = gac_queue.dequeue()
         # Iterate through variables, sorted by current domain size (increasing)
         for variable in sorted(constraint.get_scope(),
-                               key=lambda v: v.cur_domain_size()):
-            for value in variable.cur_domain():
+                               key=lambda v: v.get_cur_domain_size()):
+            for value in variable.get_cur_domain():
                 # Check this variable/value pair for a valid assignment for all
                 # other variables in constraint's scope
                 if not constraint.has_support(variable, value):
@@ -326,7 +326,7 @@ def prop_gac(csp: CSP, newVar: Variable=None) -> \
                     variable.prune_value(value)
                     pruned.append((variable, value))
                     # Check for DWO
-                    if variable.cur_domain_size() == 0:
+                    if variable.get_cur_domain_size() == 0:
                         gac_queue.clear()
                         return False, pruned
                     else:
