@@ -1,4 +1,4 @@
-from .cspbase import *
+from csp.cspbase import *
 
 
 class TileBoard(CSP):
@@ -46,4 +46,3 @@ class Tile:
     def __init__(self, id):
         self.id = id
 
-        

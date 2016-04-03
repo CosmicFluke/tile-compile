@@ -55,7 +55,7 @@ class BacktrackingSearch:
         for var in self.csp.vars:
             if var.is_assigned():
                 var.unassign()
-            var.restore_curdom()
+            var.restore_cur_domain()
 
     def extract_mr_var(self):
         """
@@ -67,10 +67,10 @@ class BacktrackingSearch:
         mv = None
         for v in self.unasgn_vars:
             if md < 0:
-                md = v.cur_domain_size()
+                md = v.get_cur_domain_size()
                 mv = v
-            elif v.cur_domain_size() < md:
-                md = v.cur_domain_size()
+            elif v.get_cur_domain_size() < md:
+                md = v.get_cur_domain_size()
                 mv = v
         self.unasgn_vars.remove(mv)
         return mv
@@ -162,7 +162,7 @@ class BacktrackingSearch:
             print('  ' * level, "bt_recurse level ", level)
 
         if not self.unasgn_vars:
-            #all variables assigned
+            # all variables assigned
             return True
         else:
             var = self.extract_mr_var()
