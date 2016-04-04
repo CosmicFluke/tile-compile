@@ -249,7 +249,7 @@ class Constraint:
         self.scope = set(scope)
         self.name = name
         self.constraint_function = function
-        self.satisfying_cache = dict()
+        # self.satisfying_cache = dict()
 
     def get_scope(self):
         """
@@ -265,49 +265,44 @@ class Constraint:
 
         :rtype: bool
         """
-        return self.constraint_function(self.scope)
+        return self.constraint_function(
+            {var: var.get_assigned_value() for var in self.scope})
 
     def get_num_unassigned(self):
         """
         return the number of unassigned variables in the constraint's scope
         """
-        n = 0
-        for v in self.scope:
-            if not v.is_assigned():
-                n = n + 1
-        return n
+        return sum(map(lambda v: not v.is_assigned(), self.scope))
 
     def get_unassigned_vars(self):
-        """return list of unassigned variables in constraint's scope. Note
-           more expensive to get the list than to then number"""
-        vs = []
-        for v in self.scope:
-            if not v.is_assigned():
-                vs.append(v)
-        return vs
+        """
+        :return: All unassigned variables in constraint's scope. Note that it is
+           more expensive to get the list than to then number
+        :rtype: set[Variable]
+        """
+        return set(filter(lambda v: not v.is_assigned(), self.scope))
 
     def has_support(self, var, val):
-        """Test if a variable value pair has a supporting tuple (a set
-           of assignments satisfying the constraint where each value is
-           still in the corresponding variables current domain
         """
-        if (var, val) in self.sup_tuples:
-            for t in self.sup_tuples[(var, val)]:
-                if self.tuple_is_valid(t):
-                    return True
-        return False
+        Test if a variable value pair has a supporting tuple (a set
+        of assignments satisfying the constraint where each value is
+        still in the corresponding variables current domain.
 
-    def tuple_is_valid(self, t):
+        :rtype: bool
         """
-        Internal routine. Check if every value in tuple is still in
-        corresponding variable domains
+        # Sequence of 2-tuples with variables and respective current domains
+        var_to_cur_domain = ((variable, variable.get_cur_domain()) for
+                           variable in self.scope if variable is not var)
+        variables, cur_domains = tuple(zip(*var_to_cur_domain))
 
-        :rtype: boolean
-        """
-        for i, var in enumerate(self.scope):
-            if not var.in_cur_domain(t[i]):
-                return False
-        return True
+        return any(map(
+            # Calls to constraint function given var-value mappings for each
+            # assignment
+            lambda assignment:
+                self.constraint_function(dict(zip(variables, assignment))),
+            # Product of all possible assignments given current domains
+            itertools.product(*cur_domains)
+        ))
 
     def __str__(self):
         return "{}({})".format(self.name, [var.name for var in self.scope])
@@ -319,66 +314,68 @@ class CSP:
        The variables of the CSP can be added later or on initialization.
        The constraints must be added later"""
 
-    def __init__(self, name, vars=[]):
+    def __init__(self, name, variables=set()):
         """
         Create a CSP object. Specify a name (a string) and optionally a set
         of variables
 
         :param name: Name of CSP
         :type name: str
-        :param vars:
-        :type vars: iterable[Variable]
+        :param variables:
+        :type variables: iterable[Variable]
         :return:
         """
 
         self.name = name
-        self.vars = []
-        self.cons = []
+        self.vars = set()
+        self.cons = set()
         self.vars_to_cons = dict()
-        for v in vars:
+        for v in variables:
             self.add_var(v)
 
     def add_var(self, v):
         """Add variable object to CSP while setting up an index
            to obtain the constraints over this variable"""
         if not type(v) is Variable:
-            print("Trying to add non variable ", v, " to CSP object")
-        elif v in self.vars_to_cons:
-            print("Trying to add variable ", v,
-                  " to CSP object that already has it")
-        else:
-            self.vars.append(v)
-            self.vars_to_cons[v] = []
+            raise TypeError(
+                "Trying to add non variable {} to CSP object".format(v))
+        if v in self.vars_to_cons:
+            print("Trying to add variable", v,
+                  "to CSP object that already has it", file=sys.stderr)
+            return
+        self.vars.add(v)
+        self.vars_to_cons[v] = set()
 
     def add_constraint(self, c):
         """Add constraint to CSP. Note that all variables in the
            constraints scope must already have been added to the CSP"""
         if not type(c) is Constraint:
-            print("Trying to add non constraint ", c, " to CSP object")
-        else:
-            for v in c.scope:
-                if v not in self.vars_to_cons:
-                    print("Trying to add constraint ", c,
-                          " with unknown variables to CSP object")
-                    return
-                self.vars_to_cons[v].append(c)
-            self.cons.append(c)
+            raise TypeError(
+                "Trying to add non constraint {} to CSP object".format(c))
+        if any((v not in self.vars_to_cons for v in c.scope)):
+            print("Trying to add constraint", c,
+                  "with unknown variables to CSP object", file=sys.stderr)
+            return
+
+        for v in c.scope:
+            self.vars_to_cons[v].add(c)
+        self.cons.add(c)
 
     def get_all_cons(self):
         """
         return list of all constraints in the CSP
 
-        :rtype: list[Constraint]
+        :rtype: set[Constraint]
         """
-        return self.cons
+        return set(self.cons)
 
     def get_cons_with_var(self, var):
         """
         return list of constraints that include var in their scope
 
-        :rtype: list[Constraint]
+        :rtype: set[Constraint]
         """
-        return list(self.vars_to_cons[var])
+        return set(self.vars_to_cons[var])
 
     def get_all_vars(self):
         """
@@ -390,13 +387,14 @@ class CSP:
 
         return list(self.vars)
 
-    def print_all(self):
-        print("CSP", self.name)
-        print("   Variables = ", self.vars)
-        print("   Constraints = ", self.cons)
+    def __str__(self):
+        return "CSP {}\n".format(self.name) + \
+               "   Variables = {}\n".format(self.vars) + \
+               "   Constraints = {}".format(self.cons)
 
-    def print_soln(self):
-        print("CSP", self.name, " Assignments = ")
-        for v in self.vars:
-            print(v, " = ", v.get_assigned_value(), "    ", end='')
-        print("")
+    def solution_str(self):
+        return "CSP {}\n".format(self.name) + \
+               "    Assignments: \n" + \
+               "\n".join(
+                   ("{} = {}".format(v, v.get_assigned_value()) for
+                    v in self.vars))
