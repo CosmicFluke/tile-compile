@@ -8,7 +8,8 @@ class TileBoard(CSP):
     """
     Attributes:
 
-        tiles:          list of Tiles, (initial domain for each variable in the board)
+        tiles:          list of Tiles, (initial domain for each variable in the
+                        board)
         dimensions:     tuple of (int, int)
         vars:           list of Variables, n x n sized array (n = dimensions)
 
@@ -17,17 +18,46 @@ class TileBoard(CSP):
         border_goals:   list of Variables
                         each Variable corresponds to some position on the border
                         of the board
-                        e.g. goal on border : house, for a puzzle game where there exists
-                         one tile whose edge contains a path that leads to the house
-                         i.e. the tile's edge should align with the goal
+                        e.g. goal on border : house, for a puzzle game where
+                        there exists one tile whose edge contains a path that
+                        leads to the house
+                        i.e. the tile's edge should align with the goal
     """
 
     def __init__(self, name, tiles, dim=3):
         self.name = name
         self.tiles = tiles
         self.dimensions = dim
-        tile_positions = create_board(self.dimensions, self.tiles)
-        CSP.__init__(self, name, tile_positions)
+        variable_grid = TileBoard.create_board(self.dimensions, self.tiles)
+        CSP.__init__(self, name, variable_grid)
+        self._add_all_diff_constraint()
+        self._add_adjacency_constraints(variable_grid)
+
+    def _add_adjacency_constraints(self, var_grid):
+        # TODO: write constraint function(s)
+        # TODO: replace "None" arg below with correct constraint function ref
+        constraints = (Constraint("Pair {}".format(pair), pair, None)
+                       for pair in TileBoard.get_adjacent_pairs(var_grid))
+        for c in constraints:
+            self.add_constraint(c)
+
+    def _add_all_diff_constraint(self):
+        # Inner function
+        def all_diff(var_map):
+            """
+            :param var_map: Dictionary of variables mapped to assigned values
+            :type var_map: dict[Variable, Tile]
+            :return: True iff all tiles have unique IDs
+            :rtype: bool
+            """
+            seen = set()
+            # Uses early exit
+            return not any(
+                t_id in seen or seen.add(t_id)
+                for t_id in map(lambda tile: tile.id, var_map.values())
+            )
+        self.add_constraint(
+            Constraint("All-diff", self.get_all_vars(), all_diff))
 
     def set_tile_position(self, tile):
         pass
@@ -40,6 +70,45 @@ class TileBoard(CSP):
 
     def get_num_tiles_left(self):
         pass
+
+    @staticmethod
+    def create_board(dim, tiles):
+        """
+        :param dim: dimensions of board
+        :type dim: int
+        :param tiles:  list of Tiles (initial domain for each variable in
+            board)
+        :type tiles: list[Tile]
+
+        :return: n x n matrix, each element is a Variable with initial domain
+            being the tiles array
+        :rtype: list[list[Variable]]
+        """
+        tiles = set(tiles)
+        return [Variable('V' + str((i, j)), tiles) for i in range(dim) for j in
+                range(dim)]
+
+    @staticmethod
+    def get_adjacent_pairs(grid):
+        # top-left to bottom-right BFS adjacent-pair-finding algorithm
+        pairs = set()
+        q = [(0, 0)]  # list of (x, y) tuples
+        max_y, max_x = len(grid), len(grid[0])
+        while q:
+            x, y = q.pop(0)
+            current_cell = grid[y][x]
+            # Get successor pairs (0, 1, or 2)
+            # TODO verify
+            adjacent = {{current_cell, s} for s in TileBoard.get_grid_successors(x, y, max_x, max_y)}
+            q.extend((pair for pair in adjacent if pair not in pairs))
+            pairs.update(adjacent)
+        return pairs
+
+    @staticmethod
+    def get_grid_successors(x, y, max_x, max_y):
+        s = [(x + 1, y) if x < max_x else None,
+             (x, y + 1) if y < max_y else None]
+        return s
 
 
 class Tile:
@@ -56,7 +125,7 @@ class Tile:
 
     def __init__(self, tile_id, edges=set(), paths=None):
         self.id = tile_id
-        self.edges = edges
+        self.edges_with_roads = edges
         # Default to paths between all edges unless otherwise specified
         self.paths = paths if paths is not None else \
             set(itertools.combinations(edges, 2))
@@ -66,7 +135,7 @@ class Tile:
         :return: Set containing all road-edges on this tile
         :rtype: set[str]
         """
-        return set(self.edges)
+        return set(self.edges_with_roads)
 
     def has_edge(self, e):
         """
@@ -74,7 +143,7 @@ class Tile:
         :return: True iff this tile has a road on edge e.
         :rtype: bool
         """
-        return e in self.edges
+        return e in self.edges_with_roads
 
     def paths_from(self, e):
         """
@@ -104,14 +173,9 @@ class Tile:
     def __str__(self):
         d = dict(zip(Tile.EDGES, ("|", "-", "|", "-")))
         edge_chars = map(lambda e: d[e] if e else " ",
-                         map(lambda e: e in self.edges,
+                         map(lambda e: e in self.edges_with_roads,
                              Tile.EDGES))
         return " {}\n{}-{}\n {}".format(*edge_chars)
-
-    @staticmethod
-    def get_orientations_with_edges(edges):
-
-        return tuple([1])
 
     @staticmethod
     def get_orientations_with_edges(tile_class, edges):
@@ -119,7 +183,7 @@ class Tile:
         Return a tuple containing all orientations which support the given
         set of edges (specified by constants Tile.N/E/S/W).
 
-        :type tile_class: class
+        :type tile_class: Tile
         :type edges: set[str]
         :rtype: set[int]
         """
@@ -132,7 +196,7 @@ class Tile:
         Return a tuple containing all orientations which support the given set
         of paths (specified by pairs of the constants Tile.N/E/S/W).
 
-        :type tile_class: class
+        :type tile_class: Tile
         :type paths: set[str]
         :rtype: set[int]
         """
@@ -289,17 +353,3 @@ def create_tiles(num_tiles):
             count += 1
 
     return tiles
-
-
-def create_board(dim, tiles):
-    """
-    IN:
-        dim: dimensions of board
-        tiles:  list of Tiles (initial domain for each variable in board
-
-    OUT:
-        n x n matrix, each element is a Variable with initial domain
-        being the tiles array
-    """
-
-    return [Variable('V' + str((i, j)), tiles) for i in range(dim) for j in range(dim)]

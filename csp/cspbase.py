@@ -231,14 +231,7 @@ class Constraint:
         The order of the variables in the scope is critical to the
         functioning of the constraint.
 
-        Constraints are implemented as storing a set of satisfying
-        tuples (i.e., each tuple specifies a value for each variable
-        in the scope such that this sequence of values satisfies the
-        constraints).
-
-        NOTE: This is a very space expensive representation...a proper
-        constraint object would allow for representing the constraint
-        with a function.
+        Constraints are implemented as functions
 
         :param name: Constraint Name
         :type name: str
@@ -284,9 +277,9 @@ class Constraint:
 
     def has_support(self, var, val):
         """
-        Test if a variable value pair has a supporting tuple (a set
-        of assignments satisfying the constraint where each value is
-        still in the corresponding variables current domain.
+        Test if a variable value pair has a supporting set of assignments
+        satisfying the constraint where each value is still in the
+        corresponding variables current domain.
 
         :rtype: bool
         """
