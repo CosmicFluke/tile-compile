@@ -1,3 +1,5 @@
+import functools
+
 from csp.cspbase import *
 
 
@@ -41,101 +43,180 @@ class TileBoard(CSP):
 
 class Tile:
     """
-    Abstract class representing a tile (tile_board variable domain value)
+    Class representing a game tile (tile_board variable domain value)
     """
-    EDGES = ("N", "E", "S", "W")
+    # Edge constants
+    N, E, S, W = "n", "e", "s", "w"
+    EDGES = (N, E, S, W)
+    # Generic configurations
+    CONFIGURATIONS = {1: set()}
+    ORIENTATIONS = CONFIGURATIONS.keys()
+    PATHS = None
 
-    def __init__(self, id):
-        self.id = id
-        self.edges
+    def __init__(self, tile_id, edges=set(), paths=None):
+        self.id = tile_id
+        self.edges = edges
+        # Default to paths between all edges unless otherwise specified
+        self.paths = paths if paths is not None else \
+            set(itertools.combinations(edges, 2))
+
+    def get_edges(self):
+        """
+        :return: Set containing all road-edges on this tile
+        :rtype: set[str]
+        """
+        return set(self.edges)
+
+    def has_edge(self, e):
+        """
+        :param e: Edge to check on this tile
+        :return: True iff this tile has a road on edge e.
+        :rtype: bool
+        """
+        return e in self.edges
+
+    def paths_from(self, e):
+        """
+        :param e: Starting edge
+        :return: All edges on this tile that can be reached from edge e.
+        :rtype: set[str]
+        """
+        return set(
+            itertools.chain(
+                *map(
+                    lambda p: p.difference({e}),
+                    {p for p in self.paths if e in p}
+                )
+            )
+        )
+
+    def has_path(self, e1, e2):
+        """
+        Check for a path on this tile between edge e1 and edge e2
+        :type e1: str
+        :type e2: str
+        :return: True iff this tile has a road between edges e1 and e2.
+        :rtype: bool
+        """
+        return {e1, e2} in self.paths
+
+    def __str__(self):
+        d = dict(zip(Tile.EDGES, ("|", "-", "|", "-")))
+        edge_chars = map(lambda e: d[e] if e else " ",
+                         map(lambda e: e in self.edges,
+                             Tile.EDGES))
+        return " {}\n{}-{}\n {}".format(*edge_chars)
+
+    @staticmethod
+    def get_orientations_with_edges(edges):
+
+        return tuple([1])
+
+    @staticmethod
+    def get_orientations_with_edges(tile_class, edges):
+        """
+        Return a tuple containing all orientations which support the given
+        set of edges (specified by constants Tile.N/E/S/W).
+
+        :type tile_class: class
+        :type edges: set[str]
+        :rtype: set[int]
+        """
+        return {o for o in tile_class.CONFIGURATIONS
+                if all((e in tile_class.CONFIGURATIONS[o] for e in edges))}
+
+    @staticmethod
+    def get_orientations_with_paths(tile_class, paths):
+        """
+        Return a tuple containing all orientations which support the given set
+        of paths (specified by pairs of the constants Tile.N/E/S/W).
+
+        :type tile_class: class
+        :type paths: set[str]
+        :rtype: set[int]
+        """
+        if not tile_class.PATHS:
+            return Tile.get_orientations_with_edges(
+                tile_class, set(itertools.chain(*paths)))
+        return {o for o in tile_class.PATHS
+                if all((p in tile_class.PATHS[o] for p in paths))}
 
 
 class TTile(Tile):
     """
     Represents a tile with a T-shaped road connecting 3 edges
     """
-    ORIENTATIONS = (1, 2, 3, 4)
-    _CONFIGURATIONS = (False, True, True, True), \
-                      (True, False, True, True), \
-                      (True, True, False, True), \
-                      (True, True, True, False)
+    CONFIGURATIONS = {1: {Tile.E, Tile.S, Tile.W},
+                      2: {Tile.N, Tile.S, Tile.W},
+                      3: {Tile.N, Tile.E, Tile.W},
+                      4: {Tile.N, Tile.E, Tile.S}}
 
-    ORIENTATION_TO_EDGE_MAPPINGS = dict(zip(
-        ORIENTATIONS,
-        (dict(zip(Tile.EDGES, tup)) for tup in _CONFIGURATIONS)
-    ))
+    ORIENTATIONS = CONFIGURATIONS.keys()
 
-    def __init__(self, id, orientation):
-        Tile.__init__(id)
-        self.edges = TTile.ORIENTATION_TO_EDGE_MAPPINGS[orientation]
+    def __init__(self, tile_id, orientation):
+        super().__init__(tile_id, TTile.CONFIGURATIONS[orientation])
 
 
 class CrossTile(Tile):
     """
     Represents a tile with crossroads connecting all four edges
     """
+    CONFIGURATIONS = {1: set(Tile.EDGES)}
 
-    EDGES = (1)
-    ORIENTATIONS = ("n", "e", "s", "w")
-    _EDGE_VALUES = (True, True, True, True)
+    def __init__(self, tile_id, orientation=1):
+        super().__init__(tile_id, set(Tile.EDGES))
 
-    MAPPINGS = dict(
-        zip(
-            EDGES,
-            map(
-                lambda tup: dict(zip(TTile.EDGES, tup)),
-                _EDGE_VALUES)
-        )
-    )
+    # staticmethod get_orientations_for_edges(edges) is same as superclass
 
-    def __init__(self, id, orientation):
-        Tile.__init__(id)
-        self.edges = CrossTile.MAPPINGS[orientation]
 
 class CornerTile(Tile):
     """
     Represents a tile with one road between adjacent edges
     """
-    EDGES = (1, 2, 3, 4)
-    ORIENTATIONS = ("n", "e", "s", "w")
-    _EDGE_VALUES = (True, True, False, False), \
-                   (False, True, True, False), \
-                   (False, False, True, True), \
-                   (True, False, False, True)
-    MAPPINGS = dict(
-        zip(
-            EDGES,
-            map(
-                lambda tup: dict(zip(TTile.EDGES, tup)),
-                _EDGE_VALUES)
-        )
-    )
+    CONFIGURATIONS = {1: {Tile.N, Tile.E},
+                      2: {Tile.E, Tile.S},
+                      3: {Tile.S, Tile.W},
+                      4: {Tile.W, Tile.N}}
+    ORIENTATIONS = CONFIGURATIONS.keys()
 
-    def __init__(self, id, orientation):
-        Tile.__init__(id)
-        self.edges = CornerTile.MAPPINGS[orientation]
+    def __init__(self, tile_id, orientation):
+        super().__init__(tile_id, CornerTile.CONFIGURATIONS[orientation])
 
 
 class LineTile(Tile):
     """
     Represents a tile with one road between opposite sides
     """
-    EDGES = (1, 2)
-    ORIENTATIONS = ("n", "e", "s", "w")
-    _EDGE_VALUES = (False, True, False, True), \
-                   (True, False, True, False)
-    MAPPINGS = dict(
-        zip(
-            EDGES,
-            map(
-                lambda tup: dict(zip(TTile.EDGES, tup)),
-                _EDGE_VALUES)
-        )
-    )
+    CONFIGURATIONS = {1: {Tile.N, Tile.S},
+                      2: {Tile.E, Tile.W}}
+    ORIENTATIONS = CONFIGURATIONS.keys()
 
-    def __init__(self, id, orientation):
-        Tile.__init__(id)
-        self.edges = LineTile.MAPPINGS[orientation]
+    def __init__(self, tile_id, orientation):
+        super().__init__(tile_id, LineTile.CONFIGURATIONS[orientation])
+
+
+class BridgeCrossTile(Tile):
+    CONFIGURATIONS = CrossTile.CONFIGURATIONS
+    PATHS = {{Tile.N, Tile.S}, {Tile.E, Tile.W}}
+
+    def __init__(self, tile_id, orientation):
+        super().__init__(tile_id,
+                         CrossTile.CONFIGURATIONS[orientation],
+                         BridgeCrossTile.PATHS)
+
+
+class OppositeCornersTile(Tile):
+    CONFIGURATIONS = {1: set(Tile.EDGES),
+                      2: set(Tile.EDGES)}
+    ORIENTATIONS = CONFIGURATIONS.keys()
+
+    PATHS = {1: {{Tile.N, Tile.E}, {Tile.S, Tile.W}},
+             2: {{Tile.N, Tile.W}, {Tile.S, Tile.E}}}
+
+    def __init__(self, tile_id, orientation):
+        super().__init__(tile_id,
+                         CrossTile.CONFIGURATIONS[orientation],
+                         OppositeCornersTile.PATHS[orientation])
 
 
 def create_tiles(num_tiles):
