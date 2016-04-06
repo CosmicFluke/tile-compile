@@ -2,6 +2,7 @@ import functools
 
 from csp.cspbase import *
 
+ABOVE, RIGHT, BELOW, LEFT = 1, 2, 3, 4
 
 class TileBoard(CSP):
     """
@@ -217,6 +218,54 @@ class OppositeCornersTile(Tile):
         super().__init__(tile_id,
                          CrossTile.CONFIGURATIONS[orientation],
                          OppositeCornersTile.PATHS[orientation])
+
+class GridVariable(Variable):
+
+    def __init___(self, name, domain, value, path_ids, x, y, bound):
+        super().__init__(name, domain)
+        super().assign(value)
+        self.x_pos = x
+        self.y_pos = y
+        self.path_ids = path_ids
+        neighbors = dict()
+        if y > 0:
+            neighbors[ABOVE] = (x, y - 1)
+        if y < bound - 1:
+            neighbors[BELOW] = (x, y + 1)
+        if x > 0:
+            neighbors[LEFT] = (x - 1, y)
+        if x < bound - 1:
+            neighbors[RIGHT] = (x + 1, y)
+
+    def get_path_id(self, dir):
+        """
+        Return the neighbor in the direction desired.
+
+        :type dir: int
+        """
+        if dir in self.path_ids:
+            return self.path_ids[dir]
+
+    def relation_to_neighbor(self, neighbor):
+        """
+        Return a constant representing the relation of the tile to a given neighbor tile.
+        i.e. if
+
+        :type neighbor: GridVariable
+        :rtype: int
+        """
+        x, y = self.x_pos, self.y_pos
+        n_x, n_y = neighbor.x_pos, neighbor.y_pos
+        if n_x - x == 1 and n_y - y == 0:
+            return RIGHT
+        elif n_x - x == - 1 and n_y - y == 0:
+            return LEFT
+        elif n_x - x == 0 and n_y - y == 1:
+            return ABOVE
+        elif n_x - x == 0 and n_y - y == -1:
+            return BELOW
+        else:
+            return None
 
 
 def create_tiles(num_tiles):
