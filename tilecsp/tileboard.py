@@ -173,13 +173,16 @@ class TileBoard(CSP):
         max_y, max_x = len(grid), len(grid[0])
         while q:
             x, y = q.pop(0)
-            current_cell = grid[y][x]
+            current_cell = grid[x][y]
             # Get successor pairs (0, 1, or 2)
             # TODO verify
-            adjacent = {frozenset((current_cell, s)) for s in TileBoard.get_grid_successors(x, y, max_x, max_y)}
-            q.extend((pair for pair in adjacent if pair not in pairs))
+            adjacent = {tuple((current_cell, s)) for s in TileBoard.get_grid_successors(x, y, max_x, max_y)}
+            q.extend((pair[1] for pair in adjacent if pair not in pairs))
             pairs.update(adjacent)
-        return pairs
+        new_pairs = frozenset()
+        for pair in pairs:
+            new_pairs.append(frozenset(pair[0], grid[pair[1][0]][pair[1][1]]))
+        return new_pairs
 
     @staticmethod
     def get_grid_successors(x, y, max_x, max_y):
