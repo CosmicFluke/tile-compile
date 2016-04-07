@@ -52,8 +52,16 @@ class TileBoard(CSP):
             :rtype: bool
             """
             vars = []
+            # CR: note that "vars" is a built-in python name
+
             for var in var_map:
                 vars.append(var)
+            # CR: Transitioning from indexed data structures to iterators can
+            # be good for readability, correctness, and optimization.  The
+            # iterator returned by var_map.keys() would give you the same thing
+            # as the vars list.  Alternatively, the method var_map.items() gives
+            # you an iterator over (key, value) 2-tuples for the dictionary.
+
             relation = var[0].get_relation_to_neighbor(var[1])
             if relation == ABOVE:
                 return var_map[var[0]].has_edge(Tile.S) == var_map[var[1]].has_edge(Tile.N)
@@ -64,6 +72,14 @@ class TileBoard(CSP):
             else:
                 return var_map[var[0]].has_edge(Tile.N) == var_map[var[1]].has_edge(Tile.S)
 
+            # CR: Python doesn't have a "switch" statement, and while an if-else
+            # chain is an obvious alternative, you can use python's dictionaries
+            # to specify results for different inputs.  Notice that the only
+            # changes between the different `return` statements are the
+            # arguments to has_edge().  Encoding those in a dictionary as
+            # 2-tuples would allow you to cut out the if-else and simply have
+            # one return statement.
+
         var_grid_2d = self.make_2d_grid()
         for i in range(self.dimensions):
             for j in (self.dimensions - 1):
@@ -71,6 +87,13 @@ class TileBoard(CSP):
                 pair_horiz = set(var_grid_2d[j][i], var_grid_2d[j + 1][i])
                 self.add_constraint(Constraint("Pair {}".format(pair_vert), pair_vert, adjacency_constraint))
                 self.add_constraint(Constraint("Pair {}".format(pair_horiz), pair_horiz, adjacency_constraint))
+        # CR: an n^2 loop isn't really necessary here, since we only need
+        # adjacent pairs.  (I already wrote a static method "get_adjacent_pairs"
+        # which does this using BFS)
+
+        # CR: additional note -- line length limit of 79 characters is a Python
+        # standard and really helps with readability.  Break inside parentheses
+        # and after separators (commas) when possible and line up arguments
 
     def _add_all_diff_constraint(self):
         # Inner function
@@ -160,6 +183,12 @@ class TileBoard(CSP):
                         var_grid_2d[i][j].set_exit_point(exit_points[(i, j)])
                         self.add_constraint(Constraint("Special Border {}".format(var_grid_2d[i][j]),
                                                        var_grid_2d[i][j], special_border_constraint))
+
+                    # CR: If you're nesting four levels deep, you usually need
+                    # to change something.  Write a helper function or consider
+                    # a different approach.  Also, the n^2 algorithm isn't
+                    # necessary here anyway since you already know where the
+                    # border variables are.
 
     def set_tile_position(self, tile):
         pass
@@ -410,6 +439,9 @@ class GridVariable(Variable):
             neighbors[LEFT] = (x - 1, y)
         if x < bound - 1:
             neighbors[RIGHT] = (x + 1, y)
+        # CR: This sequence of if-statements could be a static method
+        # Also, this is an inverse of relation_to_neighbour -- do you need both?
+
         self.neighbors = neighbors
 
     def get_coords(self):
@@ -419,6 +451,10 @@ class GridVariable(Variable):
         """
         TODO: write function
         """
+        # CR: If you leave a method unimplemented, you should
+        # a) raise NotImplementedError
+        # b) If it's not an abstract method, include a comment
+        #    with the tag "todo"
 
     def get_path_id(self, dir):
         """
@@ -428,9 +464,13 @@ class GridVariable(Variable):
         """
         if dir in self.path_ids:
             return self.path_ids[dir]
+        # CR: This references non-existent variables.  If you're going to leave
+        # something unimplemented, use to-do tags describing what you intended.
 
     def set_exit_point(self, dir):
         self.exit_point = dir
+        # CR: General convention, don't define new instance variables outside of
+        # the __init__ method.
 
     def get_exit_point(self):
         return self.exit_point
@@ -455,6 +495,10 @@ class GridVariable(Variable):
             return BELOW
         else:
             return None
+        # CR: use a dictionary mapping tuples to directions
+        # e.g.
+            # d = {(1, 0): RIGHT, (-1, 0): LEFT, ...}
+            # return d[(n_x - x, n_y - y)]
 
 
 def create_tiles(num_tiles):
