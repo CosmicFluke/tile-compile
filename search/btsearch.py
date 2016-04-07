@@ -1,5 +1,5 @@
 from csp.cspbase import *
-import logging
+import logging, time
 
 
 class BacktrackingSearch:
@@ -145,7 +145,7 @@ class BacktrackingSearch:
         if status == True:
             self.logger.info("CSP {} solved. CPU Time used = {}".format(self.csp.name,
                                                              time.process_time() - stime))
-            self.csp.print_soln()
+            self.csp.solution_str()
 
         print("bt_search finished")
         self.print_stats()
@@ -158,7 +158,7 @@ class BacktrackingSearch:
 
         # TODO: Re-implement
 
-        self.logger.info('  ' * level, "bt_recurse level ", level)
+        print('  ' * level, "bt_recurse level ", level)
 
         if not self.unasgn_vars:
             # all variables assigned
@@ -166,10 +166,10 @@ class BacktrackingSearch:
         else:
             var = self.extract_mr_var()
 
-            self.logger.info('  ' * level, "bt_recurse var = ", var)
+            print('  ' * level, "bt_recurse var = ", var)
 
-            for val in var.cur_domain():
-                self.logger.info('  ' * level, "bt_recurse trying", var, "=", val)
+            for val in var.get_cur_domain():
+                print('  ' * level, "bt_recurse trying", var, "=", val)
 
                 var.assign(val)
                 self.num_decisions = self.num_decisions + 1

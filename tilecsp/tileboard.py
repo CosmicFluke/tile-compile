@@ -43,7 +43,6 @@ class TileBoard(CSP):
         CSP.__init__(self, name, itertools.chain(*variable_grid))
         self._add_all_diff_constraint()
         self._add_adjacency_constraints(variable_grid)
-        # self._add_terminal_point_constraints(terminal_points)
         self._add_border_constraints(variable_grid, exit_points)
 
     def _add_adjacency_constraints(self, var_grid):
@@ -65,8 +64,8 @@ class TileBoard(CSP):
             # If var_map has > 2 entries, something is wrong with the constraint
             assert len(var_map) == 2
             var1, var2 = var_map.items()
-            edges = CORRESPONDING_EDGES[var1.get_relation_to_neighbor(var2)]
-            return var1.has_edge(edges[0]) == var2.has_edge(edges[1])
+            edges = CORRESPONDING_EDGES[var1[0].relation_to_neighbor(var2[0])]
+            return var1[1].has_edge(edges[0]) == var2[1].has_edge(edges[1])
 
         for pair in TileBoard.get_adjacent_pairs(var_grid):
             self.add_constraint(
@@ -118,7 +117,7 @@ class TileBoard(CSP):
                 frozenset({var}),
                 functools.partial(border_constraint_fn,
                                   border_edge=edge,
-                                  is_terminal=is_terminal))
+                                  terminal=is_terminal))
 
         top_row = var_grid[0]
         bottom_row = var_grid[-1]
@@ -172,22 +171,25 @@ class TileBoard(CSP):
         q = [(0, 0)]  # list of (x, y) tuples
         max_y, max_x = len(grid), len(grid[0])
         while q:
+
             x, y = q.pop(0)
             current_cell = grid[x][y]
             # Get successor pairs (0, 1, or 2)
             # TODO verify
 
-#             adjacent = [tuple((current_cell, s)) for s in TileBoard.get_grid_successors(x, y, max_x, max_y)]
-#             q.extend((pair[1] for pair in adjacent if pair not in pairs))
-#             adjacent = [tuple((current_cell, grid[s[0]][s[1]])) for current_cell, s in adjacent]
-
-            adjacent = {tuple((current_cell, s)) for s in TileBoard.get_grid_successors(x, y, max_x, max_y)}
+            adjacent = [tuple((current_cell, s)) for s in TileBoard.get_grid_successors(x, y, max_x, max_y) if s is not None]
             q.extend((pair[1] for pair in adjacent if pair not in pairs))
+            adjacent = {tuple((current_cell, grid[s[0]][s[1]])) for current_cell, s in adjacent}
             pairs.update(adjacent)
-        new_pairs = frozenset()
-        for pair in pairs:
-            new_pairs.append(frozenset(pair[0], grid[pair[1][0]][pair[1][1]]))
-        return new_pairs
+        pairs = {frozenset((pair)) for pair in pairs}
+        return pairs
+        #     adjacent = {tuple((current_cell, s)) for s in TileBoard.get_grid_successors(x, y, max_x, max_y) if s is not None}
+        #     q.extend((pair[1] for pair in adjacent if pair not in pairs))
+        #     pairs.update(adjacent)
+        # new_pairs = set()
+        # for pair in pairs:
+        #     new_pairs.add(frozenset((pair[0], grid[pair[1][0]][pair[1][1]])))
+        # return new_pairs
 
     @staticmethod
     def get_grid_successors(x, y, max_x, max_y):
@@ -264,10 +266,11 @@ class Tile:
 
     def __str__(self):
         d = dict(zip(Tile.EDGES, ("|", "-", "|", "-")))
-        edge_chars = map(lambda e: d[e] if e else " ",
-                         map(lambda e: e in self.edges_with_roads,
-                             Tile.EDGES))
-        return " {}\n{}-{}\n {}".format(*edge_chars)
+        # edge_chars = map(lambda e: d[e] if e else " ",
+        #                  map(lambda e: e in self.edges_with_roads,
+        #                      Tile.EDGES))
+        # return " {}\n{}-{}\n {}".format(*edge_chars)
+        return self.id
 
     @staticmethod
     def get_orientations_with_edges(tile_class, edges):

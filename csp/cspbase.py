@@ -158,7 +158,7 @@ class Variable:
 
         :rtype: int
         """
-        return sum(filter(self.cur_domain.get, self.cur_domain.keys())) \
+        return len(list(filter(self.cur_domain.get, self.cur_domain.keys()))) \
             if not self.is_assigned() else 1
 
     def restore_cur_domain(self):

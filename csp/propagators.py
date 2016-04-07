@@ -92,8 +92,9 @@ def prop_BT(csp, new_var=None):
             vars = c.get_scope()
             for var in vars:
                 vals.append(var.get_assigned_value())
-            if not c.check(vals):
+            if not c.check():
                 return False, []
+
     return True, []
 
 
@@ -160,9 +161,10 @@ def prop_fc(csp, new_var=None):
         for value in var.get_cur_domain():
             var.assign(value)
             # Begin FCCheck
-            if not constraint.check(map(
-                    lambda v: v.get_assigned_value(),
-                    constraint.get_scope())):
+            if not constraint.check():
+            # if not constraint.check(map(
+            #         lambda v: v.get_assigned_value(),
+            #         constraint.get_scope())):
                 var.prune_value(value)
                 pruned.append((var, value))
             # End FCCheck
