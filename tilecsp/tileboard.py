@@ -176,15 +176,16 @@ class TileBoard(CSP):
             current_cell = grid[y][x]
             # Get successor pairs (0, 1, or 2)
             # TODO verify
-            adjacent = {frozenset((current_cell, s)) for s in TileBoard.get_grid_successors(x, y, max_x, max_y)}
-            q.extend((pair for pair in adjacent if pair not in pairs))
+            adjacent = [tuple((current_cell, s)) for s in TileBoard.get_grid_successors(x, y, max_x, max_y)]
+            q.extend((pair[1] for pair in adjacent if pair not in pairs))
+            adjacent = [tuple((current_cell, grid[s[0]][s[1]])) for current_cell, s in adjacent]
             pairs.update(adjacent)
         return pairs
 
     @staticmethod
     def get_grid_successors(x, y, max_x, max_y):
-        s = [(x + 1, y) if x < max_x else None,
-             (x, y + 1) if y < max_y else None]
+        s = [(x + 1, y) if x + 1 < max_x else None,
+             (x, y + 1) if y + 1 < max_y else None]
         return s
 
     def make_2d_grid(self, var_grid):
@@ -347,7 +348,7 @@ class LineTile(Tile):
 class BridgeCrossTile(Tile):
     CONFIGURATIONS = CrossTile.CONFIGURATIONS
 
-    PATHS = {{N, S}, {E, W}}
+    PATHS = {frozenset({N, S}), frozenset({E, W})}
 
     def __init__(self, tile_id, orientation):
         Tile.__init__(self, tile_id,
@@ -360,8 +361,8 @@ class OppositeCornersTile(Tile):
                       2: set(Tile.EDGES)}
     ORIENTATIONS = CONFIGURATIONS.keys()
 
-    PATHS = {1: {{N, E}, {S, W}},
-             2: {{N, W}, {S, E}}}
+    PATHS = {1: {frozenset({N, E}), frozenset({S, W})},
+             2: {frozenset({N, W}), frozenset({S, E})}}
 
     def __init__(self, tile_id, orientation):
         Tile.__init__(self, tile_id,
