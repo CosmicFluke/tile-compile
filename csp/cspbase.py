@@ -251,7 +251,7 @@ class Constraint:
         """
         return set(self.scope)
 
-    def check(self, vals):
+    def check(self):
         """
         Check if the current assignments to the variables in this constraint's
         scope satisfy the constraint function
