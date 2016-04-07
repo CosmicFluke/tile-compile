@@ -24,7 +24,7 @@ class TileBoard(CSP):
                         i.e. the tile's edge should align with the goal
     """
 
-    def __init__(self, name, tiles, dim=3):
+    def __init__(self, name, tiles, exit_points, dim=3):
         self.name = name
         self.tiles = tiles
         self.dimensions = dim
@@ -32,14 +32,44 @@ class TileBoard(CSP):
         CSP.__init__(self, name, variable_grid)
         self._add_all_diff_constraint()
         self._add_adjacency_constraints(variable_grid)
+        self._add_border_constraints(variable_grid, exit_points)
 
     def _add_adjacency_constraints(self, var_grid):
-        # TODO: write constraint function(s)
-        # TODO: replace "None" arg below with correct constraint function ref
-        constraints = (Constraint("Pair {}".format(pair), pair, None)
-                       for pair in TileBoard.get_adjacent_pairs(var_grid))
-        for c in constraints:
-            self.add_constraint(c)
+        """
+        Adds all adjacency constraints over variables in var_grid
+
+        :param var_map: Dictionary of variables mapped to assigned values
+        :type var_map: dict[Variable, Tile]
+        """
+        def adjacency_constraint(var_map):
+            """
+            Adds adjacency constraint between variables in var_map
+
+            :param var_map: Dictionary of variables mapped to assigned values
+            :type var_map: dict[Variable, Tile]
+            :return: True if both variables have edges that connect to each other
+            :rtype: bool
+            """
+            vars = []
+            for var in var_map:
+                vars.append(var)
+            relation = var[0].get_relation_to_neighbor(var[1])
+            if relation == ABOVE:
+                return var_map[var[0]].has_edge(Tile.S) == var_map[var[1]].has_edge(Tile.N)
+            elif relation == RIGHT:
+                return var_map[var[0]].has_edge(Tile.W) == var_map[var[1]].has_edge(Tile.E)
+            elif relation == LEFT:
+                return var_map[var[0]].has_edge(Tile.E) == var_map[var[1]].has_edge(Tile.W)
+            else:
+                return var_map[var[0]].has_edge(Tile.N) == var_map[var[1]].has_edge(Tile.S)
+
+        var_grid_2d = self.make_2d_grid()
+        for i in range(self.dimensions):
+            for j in (self.dimensions - 1):
+                pair_vert = set(var_grid_2d[i][j], var_grid_2d[i][j + 1])
+                pair_horiz = set(var_grid_2d[j][i], var_grid_2d[j + 1][i])
+                self.add_constraint(Constraint("Pair {}".format(pair_vert), pair_vert, adjacency_constraint))
+                self.add_constraint(Constraint("Pair {}".format(pair_horiz), pair_horiz, adjacency_constraint))
 
     def _add_all_diff_constraint(self):
         # Inner function
@@ -58,6 +88,69 @@ class TileBoard(CSP):
             )
         self.add_constraint(
             Constraint("All-diff", self.get_all_vars(), all_diff))
+
+    def _add_border_constraints(self, var_grid, exit_points):
+        """
+        Set border constraints for all border variables.
+
+        :param var_map: Dictionary of variables mapped to assigned values
+        :type var_map: dict[Variable, Tile]
+        """
+        def border_constraint(var_map):
+            """
+            Checks whether var in var_map satisfies border constraint.
+
+            :param var_map: Dictionary of variables mapped to assigned values
+            :type var_map: dict[Variable, Tile]
+            :return: True if tile doesn't have edge where it meets the outside of the board.
+            :rtype: bool
+            """
+            dim = self.dimensions
+            tile = None
+            var = None
+            edge_bool = [True] * 4
+            # Dictionary only has one variable
+            for v in var_map:
+                var = v
+                tile = var_map[v]
+            x, y = var.get_coords
+            if x == 0:
+                edge_bool[0] = not tile.has_edge(Tile.W)
+            if y == 0:
+                edge_bool[1] = not tile.has_edge(Tile.N)
+            if x == dim:
+                edge_bool[2] = not tile.has_edge(Tile.E)
+            if y == dim:
+                edge_bool[3] = not tile.has_edge(Tile.S)
+            return edge_bool[0] and edge_bool[1] and edge_bool[2] and edge_bool[3]
+
+        def special_border_constraint(var_map):
+            """
+            Checks whether var in var_map satisfies special border constraint.
+
+            :param var_map: Dictionary of variables mapped to assigned values
+            :type var_map: dict[Variable, Tile]
+            :return: True if tile has edge at specified exit point.
+            :rtype: bool
+            """
+            tile = None
+            var = None
+            # Dictionary only has one variable
+            for v in var_map:
+                var = v
+                tile = var_map[v]
+            return tile.has_edge(var.get_exit_point())
+
+        var_grid_2d = self.make_2d_grid()
+        for i in range(self.dimensions):
+            for j in range(self.dimensions):
+                if i == 0 or i == self.dimensions - 1 or j == 0 or j == self.dimensions - 1:
+                    self.add_constraint(Constraint("Border {}".format(var_grid_2d[i][j]), var_grid_2d[i][j],
+                                                   border_constraint))
+                    if (i, j) in exit_points:
+                        var_grid_2d[i][j].set_exit_point(exit_points[(i, j)])
+                        self.add_constraint(Constraint("Special Border {}".format(var_grid_2d[i][j]),
+                                                       var_grid_2d[i][j], special_border_constraint))
 
     def set_tile_position(self, tile):
         pass
@@ -85,7 +178,7 @@ class TileBoard(CSP):
         :rtype: list[list[Variable]]
         """
         tiles = set(tiles)
-        return [Variable('V' + str((i, j)), tiles) for i in range(dim) for j in
+        return [GridVariable('V' + str((i, j)), tiles, i, j, dim) for i in range(dim) for j in
                 range(dim)]
 
     @staticmethod
@@ -109,6 +202,14 @@ class TileBoard(CSP):
         s = [(x + 1, y) if x < max_x else None,
              (x, y + 1) if y < max_y else None]
         return s
+
+    def make_2d_grid(self, var_grid):
+        var_grid_2d = [[] for i in range(self.dimensions)]
+        for i in range(self.dimensions):
+            for j in range(self.dimensions):
+                var_grid_2d[i].append(var_grid[i * self.dimensions + j])
+        return var_grid_2d
+
 
 
 class Tile:
@@ -283,14 +384,14 @@ class OppositeCornersTile(Tile):
                          CrossTile.CONFIGURATIONS[orientation],
                          OppositeCornersTile.PATHS[orientation])
 
+
 class GridVariable(Variable):
 
-    def __init___(self, name, domain, value, path_ids, x, y, bound):
+    def __init___(self, name, domain, x, y, bound):
         super().__init__(name, domain)
-        super().assign(value)
         self.x_pos = x
         self.y_pos = y
-        self.path_ids = path_ids
+        self.exit_point = 0
         neighbors = dict()
         if y > 0:
             neighbors[ABOVE] = (x, y - 1)
@@ -300,6 +401,15 @@ class GridVariable(Variable):
             neighbors[LEFT] = (x - 1, y)
         if x < bound - 1:
             neighbors[RIGHT] = (x + 1, y)
+        self.neighbors = neighbors
+
+    def get_coords(self):
+        return (self.x_pos, self.y_pos)
+
+    def set_path_ids(self, path_ids):
+        """
+        TODO: write function
+        """
 
     def get_path_id(self, dir):
         """
@@ -309,6 +419,12 @@ class GridVariable(Variable):
         """
         if dir in self.path_ids:
             return self.path_ids[dir]
+
+    def set_exit_point(self, dir):
+        self.exit_point = dir
+
+    def get_exit_point(self):
+        return self.exit_point
 
     def relation_to_neighbor(self, neighbor):
         """
