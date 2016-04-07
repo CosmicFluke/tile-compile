@@ -41,15 +41,16 @@ def test_2_puzzle():
         solver.bt_search(prop_BT)
 
         print(tileboard.solution_str())
+        print("Finished solving puzzle: Simple path\n")
     except Exception:
         print("Error occurred: %r" % traceback.print_exc())
-    finally:
-        print("Finished solving puzzle: Simple path\n")
+
+
 
 
 def main():
 
-    test_1_puzzle()
+    # test_1_puzzle()
     test_2_puzzle()
 
 

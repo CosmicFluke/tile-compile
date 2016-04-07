@@ -329,7 +329,7 @@ class TTile(Tile):
     ORIENTATIONS = CONFIGURATIONS.keys()
 
     def __init__(self, tile_id, orientation):
-        super().__init__(tile_id, TTile.CONFIGURATIONS[orientation])
+        Tile.__init__(self, tile_id, TTile.CONFIGURATIONS[orientation])
 
 
 class CrossTile(Tile):
@@ -339,7 +339,7 @@ class CrossTile(Tile):
     CONFIGURATIONS = {1: set(Tile.EDGES)}
 
     def __init__(self, tile_id, orientation=1):
-        super().__init__(tile_id, set(Tile.EDGES))
+        Tile.__init__(self, tile_id, set(Tile.EDGES))
 
     # staticmethod get_orientations_for_edges(edges) is same as superclass
 
@@ -355,7 +355,7 @@ class CornerTile(Tile):
     ORIENTATIONS = CONFIGURATIONS.keys()
 
     def __init__(self, tile_id, orientation):
-        super().__init__(tile_id, CornerTile.CONFIGURATIONS[orientation])
+        Tile.__init__(self, tile_id, CornerTile.CONFIGURATIONS[orientation])
 
 
 class LineTile(Tile):
@@ -367,15 +367,15 @@ class LineTile(Tile):
     ORIENTATIONS = CONFIGURATIONS.keys()
 
     def __init__(self, tile_id, orientation):
-        super().__init__(tile_id, LineTile.CONFIGURATIONS[orientation])
+        Tile.__init__(self, tile_id, LineTile.CONFIGURATIONS[orientation])
 
 
 class BridgeCrossTile(Tile):
     CONFIGURATIONS = CrossTile.CONFIGURATIONS
-    PATHS = {{Tile.N, Tile.S}, {Tile.E, Tile.W}}
+    PATHS = tuple(({Tile.N, Tile.S}, {Tile.E, Tile.W}))
 
     def __init__(self, tile_id, orientation):
-        super().__init__(tile_id,
+        Tile.__init__(self, tile_id,
                          CrossTile.CONFIGURATIONS[orientation],
                          BridgeCrossTile.PATHS)
 
@@ -385,19 +385,19 @@ class OppositeCornersTile(Tile):
                       2: set(Tile.EDGES)}
     ORIENTATIONS = CONFIGURATIONS.keys()
 
-    PATHS = {1: {{Tile.N, Tile.E}, {Tile.S, Tile.W}},
-             2: {{Tile.N, Tile.W}, {Tile.S, Tile.E}}}
+    PATHS = {1: tuple(({Tile.N, Tile.E}, {Tile.S, Tile.W})),
+             2: tuple(({Tile.N, Tile.W}, {Tile.S, Tile.E}))}
 
     def __init__(self, tile_id, orientation):
-        super().__init__(tile_id,
+        Tile.__init__(self, tile_id,
                          CrossTile.CONFIGURATIONS[orientation],
                          OppositeCornersTile.PATHS[orientation])
 
 
 class GridVariable(Variable):
 
-    def __init___(self, name, domain, x, y, bound):
-        super().__init__(name, domain)
+    def __init__(self, name, domain, x, y, bound):
+        Variable.__init__(self, name, domain)
         self.x_pos = x
         self.y_pos = y
         self.exit_point = 0
@@ -468,12 +468,11 @@ def create_tiles(num_tiles):
     tiles = []
 
     count = 0
-    for tile in num_tiles.keys():
-        for i in range(num_tiles[tile]):
-            id = 'id' + '-' + str(count)
-            for orientation in tile.ORIENTATIONS:
-
-                value = tile(id, orientation)
+    for tile_type in num_tiles:
+        for i in range(num_tiles[tile_type]):
+            id_name = 'id' + '-' + str(count)
+            for orientation in tile_type.ORIENTATIONS:
+                value = tile_type(id_name, orientation)
                 tiles.append(value)
             count += 1
 

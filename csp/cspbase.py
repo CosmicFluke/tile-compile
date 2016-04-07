@@ -329,9 +329,6 @@ class CSP:
     def add_var(self, v):
         """Add variable object to CSP while setting up an index
            to obtain the constraints over this variable"""
-        if not type(v) is Variable:
-            raise TypeError(
-                "Trying to add non variable {} to CSP object".format(v))
         if v in self.vars_to_cons:
             print("Trying to add variable", v,
                   "to CSP object that already has it", file=sys.stderr)
