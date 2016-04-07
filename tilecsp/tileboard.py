@@ -23,7 +23,7 @@ class TileBoard(CSP):
                         i.e. the tile's edge should align with the goal
     """
 
-    def __init__(self, name, tiles, dim=3):
+    def __init__(self, name, tiles, terminal_points, dim=3):
         self.name = name
         self.tiles = tiles
         self.dimensions = dim
@@ -31,6 +31,7 @@ class TileBoard(CSP):
         CSP.__init__(self, name, variable_grid)
         self._add_all_diff_constraint()
         self._add_adjacency_constraints(variable_grid)
+        # self._add_terminal_point_constraints(terminal_points)
 
     def _add_adjacency_constraints(self, var_grid):
         # TODO: write constraint function(s)
@@ -57,6 +58,14 @@ class TileBoard(CSP):
             )
         self.add_constraint(
             Constraint("All-diff", self.get_all_vars(), all_diff))
+
+    def _add_terminal_point_constraints(self, terminal_points):
+        #TODO: write constraint function for perimeters
+        # TODO: replace "None" arg below with correct constraint function ref
+
+        self.add_constraint(
+            Constraint('Terminal points', None)
+        )
 
     def set_tile_position(self, tile):
         pass
