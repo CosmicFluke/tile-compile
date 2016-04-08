@@ -158,7 +158,7 @@ class BacktrackingSearch:
 
         # TODO: Re-implement
 
-        print('  ' * level, "bt_recurse level ", level)
+        #print('  ' * level, "bt_recurse level ", level)
 
         if not self.unasgn_vars:
             # all variables assigned
@@ -166,10 +166,10 @@ class BacktrackingSearch:
         else:
             var = self.extract_mr_var()
 
-            print('  ' * level, "bt_recurse var = ", var)
+            #print('  ' * level, "bt_recurse var = ", var)
 
             for val in var.get_cur_domain():
-                print('  ' * level, "bt_recurse trying", var, "=", val)
+                #print('  ' * level, "bt_recurse trying", var, "=", val)
 
                 var.assign(val)
                 id_prunings = []
@@ -183,9 +183,9 @@ class BacktrackingSearch:
                 status, prunings = propagator(self.csp, var)
                 self.num_prunings = self.num_prunings + len(prunings)
 
+                #print('  ' * level, "bt_recurse prop status = ", status)
+                #print('  ' * level, "bt_recurse prop pruned = ", prunings)
 
-                print('  ' * level, "bt_recurse prop status = ", status)
-                print('  ' * level, "bt_recurse prop pruned = ", prunings)
 
                 prunings.extend(id_prunings)
 
@@ -193,7 +193,7 @@ class BacktrackingSearch:
                     if self.bt_recurse(propagator, level+1):
                         return True
 
-                print('  ' * level, "bt_recurse restoring ", prunings)
+                #print('  ' * level, "bt_recurse restoring ", prunings)
                 self.restoreValues(prunings)
                 var.unassign()
 

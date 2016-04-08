@@ -48,15 +48,23 @@ def test_2_puzzle():
 def test_3_puzzle():
     print('Beginning puzzle 3: 4x4 with four terminal nodes')
     try:
-        num_tiles = {CornerTile: 10, LineTile: 1, TTile: 4, CrossTile: 1}
+
+        #num_tiles = {}
+        num_tiles = {EmptyTile: 4} #For 3-3 case
+        #num_tiles = {CornerTile: 4} #For 2-2 case
         tiles = create_tiles(num_tiles)
 
-        terminal_nodes = frozenset({((0, 1), W), ((3, 0), N), ((0, 3), S), ((3, 2), E)})
+        # TODO: terminal node representation
+        #terminal_nodes = frozenset({((1, 0), N), ((2, 0), N), ((0, 1), W), ((0, 2), W), ((1, 3), S), ((2, 3), S), ((3, 2), E), ((3, 1), E)})
+        #terminal_nodes = frozenset({((2, 2), E), ((2, 2), S)})
+        terminal_nodes = frozenset()
 
-        tileboard = TileBoard('Simple Path Puzzle', tiles, terminal_nodes, 4)
+        tileboard = TileBoard('Simple Path Puzzle', tiles, terminal_nodes, 2)
+
         solver = BacktrackingSearch(tileboard, 20)
-        solver.bt_search(prop_fc)
-
+        #solver.bt_search(prop_fc)
+        solver.bt_search(prop_BT)
+        #solver.bt_search(prop_GAC)
         print(tileboard.solution_str())
         print("Finished trying to solve puzzle: Simple path\n")
     except Exception:
