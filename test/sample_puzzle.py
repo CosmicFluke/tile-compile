@@ -15,7 +15,7 @@ def test_1_puzzle():
         tileboard = TileBoard('Simple Path Puzzle', tiles, terminal_nodes, 2)
 
         solver = BacktrackingSearch(tileboard, 20)
-        solver.bt_search(prop_GAC)
+        solver.bt_search(prop_fc)
 
         print(tileboard.solution_str())
         print("Finished trying to solve puzzle: Simple path\n")
@@ -109,8 +109,8 @@ def test_trivial_puzzle():
 
 def main():
 
-    test_1_puzzle()
-    # test_2_puzzle()
+    #test_1_puzzle()
+    test_2_puzzle()
     # test_3_puzzle()
     # test_4_puzzle()
     # test_trivial_puzzle()

@@ -128,6 +128,8 @@ class Variable:
     #
     def prune_value(self, value):
         """Remove value from CURRENT domain"""
+        if self.is_assigned() and self.get_assigned_value() is value:
+            self.unassign()
         self.cur_domain[value] = False
         self.cur_domain_flag = True
 
