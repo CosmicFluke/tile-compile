@@ -174,6 +174,8 @@ class BacktrackingSearch:
                 var.assign(val)
                 id_prunings = []
                 for var in self.csp.get_all_vars():
+                    if var.is_assigned():
+                        continue
                     for dom_val in var.get_cur_domain():
                         if val.id == dom_val.id:
                             var.prune_value(dom_val)
