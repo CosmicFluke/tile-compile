@@ -39,11 +39,14 @@ class TileBoard(CSP):
         self.name = name
         self.tiles = tiles
         self.dimensions = dim
-        variable_grid = TileBoard.create_board(self.dimensions, self.tiles)
+        self.exit_points = exit_points
+        variable_grid = TileBoard.create_board(self.dimensions,
+                                               self.tiles,
+                                               exit_points)
         CSP.__init__(self, name, itertools.chain(*variable_grid))
         self._add_all_diff_constraint()
         self._add_adjacency_constraints(variable_grid)
-        self._add_border_constraints(variable_grid, exit_points)
+        self._add_border_constraints(variable_grid)
 
     def _add_adjacency_constraints(self, var_grid):
         """
@@ -88,7 +91,7 @@ class TileBoard(CSP):
         self.add_constraint(
             Constraint("All-diff", self.get_all_vars(), all_diff))
 
-    def _add_border_constraints(self, var_grid, exit_points):
+    def _add_border_constraints(self, var_grid):
         """
         Set border constraints for all border variables.
 
@@ -131,20 +134,8 @@ class TileBoard(CSP):
         for v_data in border_vars:
             self.add_constraint(make_constraint(*v_data))
 
-    def set_tile_position(self, tile):
-        pass
-
-    def get_tile_position(self, tile):
-        pass
-
-    def get_total_num_tiles(self):
-        return len(self.tiles)
-
-    def get_num_tiles_left(self):
-        pass
-
     @staticmethod
-    def create_board(dim, tiles):
+    def create_board(dim, tiles, terminals):
         """
         :param dim: dimensions of board
         :type dim: int
@@ -158,11 +149,15 @@ class TileBoard(CSP):
         """
         tiles = set(tiles)
 
-        def make_grid_variable(m, n, size):
-            return GridVariable('V{}'.format((m, n)), tiles, m, n, size)
+        def make_grid_variable(m, n, term_edges):
+            return GridVariable('V{}'.format((m, n)), tiles, m, n, term_edges)
 
-        return [[make_grid_variable(i, j, dim) for i in range(dim)] for j in
-                range(dim)]
+        def get_terminal_edges(m, n):
+            return frozenset(term[1] for term in terminals if {m, n} == term[0])
+
+        return [[make_grid_variable(i, j, get_terminal_edges(i, j))
+                 for i in range(dim)]
+                for j in range(dim)]
 
     @staticmethod
     def get_adjacent_pairs(grid):
@@ -176,14 +171,13 @@ class TileBoard(CSP):
             current_cell = grid[y][x]
             # Get successor pairs (0, 1, or 2)
             # TODO verify
-
-            adjacent = [(current_cell, s)
-                        for s in TileBoard.get_grid_successors(x, y, max_x, max_y)
+            successors = TileBoard.get_grid_successors(x, y, max_x, max_y)
+            adjacent = [(frozenset((current_cell, grid[s[1]][s[0]])), s)
+                        for s in successors
                         if s is not None]
-            q.extend((pair[1] for pair in adjacent if (pair[0], grid[pair[1][1]][pair[1][0]]) not in pairs))
-            adjacent = {tuple((current_cell, grid[s[1]][s[0]])) for current_cell, s in adjacent}
+            q.extend((pair[1] for pair in adjacent if pair[0] not in pairs))
+            adjacent = {pair for pair, coord in adjacent}
             pairs.update(adjacent)
-        pairs = {frozenset((pair)) for pair in pairs}
         return pairs
 
     @staticmethod
@@ -191,14 +185,6 @@ class TileBoard(CSP):
         s = [(x + 1, y) if x + 1 < max_x else None,
              (x, y + 1) if y + 1 < max_y else None]
         return s
-
-    def make_2d_grid(self, var_grid):
-        var_grid_2d = [[] for i in range(self.dimensions)]
-        for i in range(self.dimensions):
-            for j in range(self.dimensions):
-                var_grid_2d[i].append(var_grid[i * self.dimensions + j])
-        return var_grid_2d
-
 
 
 class Tile:
@@ -269,7 +255,6 @@ class Tile:
                              [N, W, E, S]))
         return " {}\n{}-{}\n {}".format(*edge_chars)
 
-
     @staticmethod
     def get_orientations_with_edges(tile_class, edges):
         """
@@ -303,6 +288,7 @@ class Tile:
 class EmptyTile(Tile):
     def __init__(self, tile_id, orientation):
         super().__init__(tile_id, set())
+
 
 class TTile(Tile):
     """
@@ -384,11 +370,12 @@ class OppositeCornersTile(Tile):
 
 class GridVariable(Variable):
 
-    def __init__(self, name, domain, x, y, bound):
+    def __init__(self, name, domain, x, y, terminal_edges=frozenset()):
+        # terminal_edges param must be frozenset
         super().__init__(name, domain)
         self.x_pos = x
         self.y_pos = y
-        self.terminal_edges = frozenset()
+        self.terminal_edges = terminal_edges
 
     def get_coords(self):
         return self.x_pos, self.y_pos
@@ -410,7 +397,7 @@ class GridVariable(Variable):
         if dir in self.path_ids:
             return self.path_ids[dir]
 
-    def get_exit_point(self):
+    def get_exit_points(self):
         return self.terminal_edges
 
     def relation_to_neighbor(self, neighbor):
@@ -426,8 +413,8 @@ class GridVariable(Variable):
         n_x, n_y = neighbor.x_pos, neighbor.y_pos
         diff_to_relation = {(1, 0): RIGHT,
                             (-1, 0): LEFT,
-                            (0, 1): ABOVE,
-                            (0, -1): BELOW}
+                            (0, -1): ABOVE,
+                            (0, 1): BELOW}
         return diff_to_relation[(n_x - x, n_y - y)]
 
 
@@ -444,7 +431,7 @@ def create_tiles(num_tiles):
     count = 0
     for tile_type in num_tiles:
         for i in range(num_tiles[tile_type]):
-            id_name = 'id' + '-' + str(count)
+            id_name = 'id-' + str(count)
             for orientation in tile_type.ORIENTATIONS:
                 value = tile_type(id_name, orientation)
                 tiles.append(value)

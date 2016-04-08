@@ -259,7 +259,8 @@ class Constraint:
         :rtype: bool
         """
         return self.constraint_function(
-            {var: var.get_assigned_value() for var in self.scope})
+            {var: var.get_assigned_value() for var in self.scope if
+             var.is_assigned()})
 
     def get_num_unassigned(self):
         """
