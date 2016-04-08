@@ -1,7 +1,5 @@
-import time
-import functools
-
-'''Constraint Satisfaction Routines
+"""
+Constraint Satisfaction Routines
    A) class Variable
 
       This class allows one to define CSP variables.
@@ -34,49 +32,54 @@ import functools
        so that basic backtracking, forward-checking or GAC can be 
        executed depending on the propagator used.
 
-'''
+"""
+import itertools
+
+import sys
 
 
-class Variable: 
+class Variable:
+    """
+    Class for defining CSP variables.  On initialization the
+    variable object should be given a name, and optionally a list of
+    domain values. Later on more domain values an be added...but
+    domain values can never be removed.
 
-    '''Class for defining CSP variables.  On initialization the
-       variable object should be given a name, and optionally a list of
-       domain values. Later on more domain values an be added...but
-       domain values can never be removed.
+    The variable object offers two types of functionality to support
+    search.
 
-       The variable object offers two types of functionality to support
-       search. 
-       (a) It has a current domain, implimented as a set of flags 
-           determining which domain values are "current", i.e., unpruned.
-           - you can prune a value, and restore it.
-           - you can obtain a list of values in the current domain, or count
-             how many are still there
+    (a) It has a current domain, implemented as a set of flags
+       determining which domain values are "current", i.e., un-pruned.
+       - you can prune a value, and restore it.
+       - you can obtain a list of values in the current domain, or count
+         how many are still there
 
-       (b) You can assign and unassign a value to the variable.
-           The assigned value must be from the variable domain, and
-           you cannot assign to an already assigned variable.
+    (b) You can assign and un-assign a value to the variable.
+       The assigned value must be from the variable domain, and
+       you cannot assign to an already assigned variable.
 
-           You can get the assigned value e.g., to find the solution after
-           search.
-           
-           Assignments and current domain interact at the external interface
-           level. Assignments do not affect the internal state of the current domain 
-           so as not to interact with value pruning and restoring during search. 
+       You can get the assigned value e.g., to find the solution after
+       search.
 
-           But conceptually when a variable is assigned it only has
-           the assigned value in its current domain (viewing it this
-           way makes implementing the propagators easier). Hence, when
-           the variable is assigned, the 'cur_domain' returns the
-           assigned value as the sole member of the current domain,
-           and 'in_cur_domain' returns True only for the assigned
-           value. However, the internal state of the current domain
-           flags are not changed so that pruning and unpruning can
-           work independently of assignment and unassignment. 
-           '''
+       Assignments and current domain interact at the external interface
+       level. Assignments do not affect the internal state of the current domain
+       so as not to interact with value pruning and restoring during search.
+
+       But conceptually when a variable is assigned it only has
+       the assigned value in its current domain (viewing it this
+       way makes implementing the propagators easier). Hence, when
+       the variable is assigned, the 'cur_domain' returns the
+       assigned value as the sole member of the current domain,
+       and 'in_cur_domain' returns True only for the assigned
+       value. However, the internal state of the current domain
+       flags are not changed so that pruning and un-pruning can
+       work independently of assignment and un-assignment.
+    """
+
     #
-    #set up and info methods
+    # set up and info methods
     #
-    def __init__(self, name, domain=[]):
+    def __init__(self, name, domain=set()):
         """
         Create a variable object, specifying its name (a string).
         Optionally specify the initial domain.
@@ -84,127 +87,146 @@ class Variable:
         :param name: Variable name
         :type name: str
         :param domain: Optional domain of CSP
-        :type domain: iterable
+        :type domain: set
         :return: None
         """
-        self.name = name                #text name for variable
-        self.dom = list(domain)         #Make a copy of passed domain
-        self.curdom = [True] * len(domain)      #using list
-        #for bt_search
+        self.name = name  # text name for variable
+        self.domain = set(domain)  # Make a copy of passed domain
+        self.cur_domain = {val: True for val in self.domain}  # using list
         self.assignedValue = None
+        self.cur_domain_flag = True
+        self.cur_domain_cache = self.get_cur_domain()
 
     def add_domain_values(self, values):
-        '''Add additional domain values to the domain
-           Removals not supported removals'''
-        for val in values: 
-            self.dom.append(val)
-            self.curdom.append(True)
+        """
+        Add additional domain values to the domain
+        Removals not supported
+
+        :type values: list
+        """
+        for val in values:
+            self.domain.add(val)
+            self.cur_domain[val] = True
+        self.cur_domain_flag = True
 
     def domain_size(self):
-        '''Return the size of the (permanent) domain'''
-        return(len(self.dom))
+        """
+        :return: The size of the (permanent) domain
+        :rtype: int
+        """
+        return len(self.domain)
 
     def domain(self):
-        '''return the variable's (permanent) domain'''
-        return(list(self.dom))
+        """
+        :return: the variable's (permanent) domain
+        :rtype: set
+        """
+        return set(self.domain)
 
     #
-    #methods for current domain (pruning and unpruning)
+    # methods for current domain (pruning and unpruning)
     #
-
     def prune_value(self, value):
-        '''Remove value from CURRENT domain'''
-        self.curdom[self.value_index(value)] = False
+        """Remove value from CURRENT domain"""
+        self.cur_domain[value] = False
+        self.cur_domain_flag = True
 
     def unprune_value(self, value):
-        '''Restore value to CURRENT domain'''
-        self.curdom[self.value_index(value)] = True
+        """Restore value to CURRENT domain"""
+        self.cur_domain[value] = True
+        self.cur_domain_flag = True
 
-    def cur_domain(self):
-        '''return list of values in CURRENT domain (if assigned 
-           only assigned value is viewed as being in current domain)'''
-        vals = []
+    def get_cur_domain(self):
+        """
+        :return: List of values in CURRENT domain (if assigned,
+            only assigned value is viewed as being in current domain)
+        :rtype: set
+        """
         if self.is_assigned():
-            vals.append(self.get_assigned_value())
-        else:
-            for i, val in enumerate(self.dom):
-                if self.curdom[i]:
-                    vals.append(val)
-        return vals
+            return [self.get_assigned_value()]
+        if not self.cur_domain_flag:
+            return self.cur_domain_cache
+        self.cur_domain_cache = \
+            list(filter(self.cur_domain.get, self.cur_domain.keys()))
+        self.cur_domain_flag = False
+        return self.cur_domain_cache
 
     def in_cur_domain(self, value):
-        '''check if value is in CURRENT domain (without constructing list)
-           if assigned only assigned value is viewed as being in current 
-           domain'''
-        if not value in self.dom:
-            return False
-        if self.is_assigned():
-            return value == self.get_assigned_value()
-        else:
-            return self.curdom[self.value_index(value)]
+        """
+        Check if value is in CURRENT domain (without constructing list).
+        If assigned, only assigned value is viewed as being in current
+        domain.
 
-    def cur_domain_size(self):
-        '''Return the size of the variables domain (without construcing list)'''
-        if self.is_assigned():
-            return 1
-        else:
-            return(sum(1 for v in self.curdom if v))
+        :return: True iff value is in current domain
+        :rtype: bool
+        """
+        return self.cur_domain[value] if not self.is_assigned() else \
+            value == self.get_assigned_value()
 
-    def restore_curdom(self):
-        '''return all values back into CURRENT domain'''
-        for i in range(len(self.curdom)):
-            self.curdom[i] = True
+    def get_cur_domain_size(self):
+        """
+        Return the size of the variables domain (without constructing list)
+
+        :rtype: int
+        """
+        return 1 if self.is_assigned() else len(self.cur_domain_cache) if not \
+            self.cur_domain_flag else len(self.get_cur_domain())
+
+    def restore_cur_domain(self):
+        """
+        return all values back into CURRENT domain
+        """
+        for val in self.domain:
+            self.cur_domain[val] = True
+        self.cur_domain_flag = True
 
     #
-    #methods for assigning and unassigning
+    # methods for assigning and un-assigning
     #
-
     def is_assigned(self):
-        return self.assignedValue != None
-    
+        return self.assignedValue is not None
+
     def assign(self, value):
-        '''Used by bt_search. When we assign we remove all other values
-           values from curdom. We save this information so that we can
-           reverse it on unassign'''
+        """
+        Used by bt_search. When we assign we remove all other values
+        values from curdom. We save this information so that we can
+        reverse it on unassign
+        """
 
         if self.is_assigned() or not self.in_cur_domain(value):
-            print("ERROR: trying to assign variable", self, 
-                  "that is already assigned or illegal value (not in curdom)")
+            msg = "ERROR: trying to assign variable that is already " \
+                  "assigned or illegal value (not in current domain)"
+            print(msg, file=sys.stderr)
             return
-
         self.assignedValue = value
+        self.cur_domain_flag = True
 
     def unassign(self):
-        '''Used by bt_search. Unassign and restore old curdom'''
+        """
+        Used by bt_search. Un-assign and restore old curdom
+        """
         if not self.is_assigned():
-            print("ERROR: trying to unassign variable", self, " not yet assigned")
+            msg = "ERROR: trying to un-assign, variable {} not yet assigned"
+            print(msg.format(self), file=sys.stderr)
             return
+
         self.assignedValue = None
+        self.cur_domain_flag = True
 
     def get_assigned_value(self):
-        '''return assigned value...returns None if is unassigned'''
+        """return assigned value...returns None if is unassigned"""
         return self.assignedValue
 
     #
-    #internal methods
+    # internal methods
     #
-
-    def value_index(self, value):
-        '''Domain values need not be numbers, so return the index
-           in the domain list of a variable value'''
-        return self.dom.index(value)
-
     def __repr__(self):
-        return("Var-{}".format(self.name))
+        return "Var--\"{}\": Dom = {}, CurDom = {}".format(self.name,
+                                                           self.domain,
+                                                           self.cur_domain)
 
     def __str__(self):
-        return("Var--{}".format(self.name))
-
-    def print_all(self):
-        '''Also print the variable domain and current domain'''
-        print("Var--\"{}\": Dom = {}, CurDom = {}".format(self.name, 
-                                                             self.dom, 
-                                                             self.curdom))
+        return "Var--{}".format(self.name)
 
 
 class Constraint:
@@ -215,21 +237,14 @@ class Constraint:
     variables in the constraint's scope satisfies the constraint
     """
 
-    def __init__(self, name, scope):
+    def __init__(self, name, scope, function):
         """
         Create a constraint object, specify the constraint name (a
         string) and its scope (an ORDERED list of variable objects).
         The order of the variables in the scope is critical to the
         functioning of the constraint.
 
-        Constraints are implemented as storing a set of satisfying
-        tuples (i.e., each tuple specifies a value for each variable
-        in the scope such that this sequence of values satisfies the
-        constraints).
-
-        NOTE: This is a very space expensive representation...a proper
-        constraint object would allow for representing the constraint
-        with a function.
+        Constraints are implemented as functions
 
         :param name: Constraint Name
         :type name: str
@@ -237,158 +252,143 @@ class Constraint:
         :type scope: iterable[Variable]
         :return: None
         """
-
-        self.scope = list(scope)
+        self.scope = set(scope)
         self.name = name
-        self.sat_tuples = dict()
-
-        #The next object data item 'sup_tuples' will be used to help
-        #support GAC propgation. It allows access to a list of 
-        #satisfying tuples that contain a particular variable/value
-        #pair.
-        self.sup_tuples = dict()
-
-    def add_satisfying_tuples(self, tuples):
-        """
-        We specify the constraint by adding its complete list of satisfying
-        tuples.
-        """
-
-        for x in tuples:
-            t = tuple(x)  #ensure we have an immutable tuple
-            if not t in self.sat_tuples:
-                self.sat_tuples[t] = True
-
-            #now put t in as a support for all of the variable values in it
-            for i, val in enumerate(t):
-                var = self.scope[i]
-                if not (var,val) in self.sup_tuples:
-                    self.sup_tuples[(var,val)] = []
-                self.sup_tuples[(var,val)].append(t)
+        self.constraint_function = function
+        self.sat_mappings = set()
 
     def get_scope(self):
-        '''get list of variables the constraint is over
+        """
+        :return: all variables that the constraint is over
+        :rtype: set[Variable]
+        """
+        return set(self.scope)
 
-        :rtype: list[Variable]'''
-        return list(self.scope)
+    def check(self):
+        """
+        Check if the current assignments to the variables in this constraint's
+        scope satisfy the constraint function
 
-    def check(self, vals) -> bool:
-        '''Given list of values, one for each variable in the
-           constraints scope, return true if and only if these value
-           assignments satisfy the constraint by applying the
-           constraints "satisfies" function.  Note the list of values
-           are must be ordered in the same order as the list of
-           variables in the constraints scope'''
-        return tuple(vals) in self.sat_tuples
+        :rtype: bool
+        """
+        return self.constraint_function(
+            {var: var.get_assigned_value() for var in self.scope})
 
-    def get_n_unasgn(self):
-        '''return the number of unassigned variables in the constraint's scope'''
-        n = 0
-        for v in self.scope:
-            if not v.is_assigned():
-                n = n + 1
-        return n
+    def get_num_unassigned(self):
+        """
+        return the number of unassigned variables in the constraint's scope
+        """
+        return sum(map(lambda v: not v.is_assigned(), self.scope))
 
-    def get_unasgn_vars(self): 
-        '''return list of unassigned variables in constraint's scope. Note
-           more expensive to get the list than to then number'''
-        vs = []
-        for v in self.scope:
-            if not v.is_assigned():
-                vs.append(v)
-        return vs
+    def get_unassigned_vars(self):
+        """
+        :return: All unassigned variables in constraint's scope. Note that it is
+           more expensive to get the list than to then number
+        :rtype: set[Variable]
+        """
+        return set(filter(lambda v: not v.is_assigned(), self.scope))
 
     def has_support(self, var, val):
-        '''Test if a variable value pair has a supporting tuple (a set
-           of assignments satisfying the constraint where each value is
-           still in the corresponding variables current domain
-        '''
-        if (var, val) in self.sup_tuples:
-            for t in self.sup_tuples[(var, val)]:
-                if self.tuple_is_valid(t):
-                    return True
-        return False
-
-    def tuple_is_valid(self, t):
         """
-        Internal routine. Check if every value in tuple is still in
-        corresponding variable domains
+        Test if a variable value pair has a supporting set of assignments
+        satisfying the constraint where each value is still in the
+        corresponding variables current domain.
 
-        :rtype: boolean
+        :rtype: bool
         """
-        for i, var in enumerate(self.scope):
-            if not var.in_cur_domain(t[i]):
-                return False
-        return True
+        print("Var: {}\t\tVal: {}".format(var, val))
+        if var not in self.scope:
+            return True
+
+        if len(self.scope) == 1:
+            return self.constraint_function({var: val})
+
+        # Sequence of 2-tuples with variables and respective current domains
+        var_to_cur_domain = ((variable, variable.get_cur_domain()) for
+                             variable in self.scope)
+
+        variables, cur_domains = zip(*var_to_cur_domain)
+
+        return any(map(
+            # Calls to constraint function given var-value mappings for each
+            # assignment
+            lambda assignment:
+                frozenset(zip(variables, assignment)) in self.sat_mappings or
+                self.constraint_function(dict(zip(variables, assignment))) or
+                self.sat_mappings.add(frozenset(zip(variables, assignment))),
+            # Product of all possible assignments given current domains
+            itertools.product(*cur_domains)
+        ))
 
     def __str__(self):
-        return("{}({})".format(self.name,[var.name for var in self.scope]))
+        return "{}({})".format(self.name, [var.name for var in self.scope])
 
 
 class CSP:
-    '''Class for packing up a set of variables into a CSP problem.
+    """Class for packing up a set of variables into a CSP problem.
        Contains various utility routines for accessing the problem.
        The variables of the CSP can be added later or on initialization.
-       The constraints must be added later'''
+       The constraints must be added later"""
 
-    def __init__(self, name, vars=[]):
+    def __init__(self, name, variables=set()):
         """
         Create a CSP object. Specify a name (a string) and optionally a set
         of variables
 
         :param name: Name of CSP
         :type name: str
-        :param vars:
-        :type vars: iterable[Variable]
+        :param variables:
+        :type variables: iterable[Variable]
         :return:
         """
 
         self.name = name
-        self.vars = []
-        self.cons = []
+        self.vars = set()
+        self.cons = set()
         self.vars_to_cons = dict()
-        for v in vars:
+        for v in variables:
             self.add_var(v)
 
-    def add_var(self,v):
-        '''Add variable object to CSP while setting up an index
-           to obtain the constraints over this variable'''
-        if not type(v) is Variable:
-            print("Trying to add non variable ", v, " to CSP object")
-        elif v in self.vars_to_cons:
-            print("Trying to add variable ", v, " to CSP object that already has it")
-        else:
-            self.vars.append(v)
-            self.vars_to_cons[v] = []
+    def add_var(self, v):
+        """Add variable object to CSP while setting up an index
+           to obtain the constraints over this variable"""
+        if v in self.vars_to_cons:
+            print("Trying to add variable", v,
+                  "to CSP object that already has it", file=sys.stderr)
+            return
+        self.vars.add(v)
+        self.vars_to_cons[v] = set()
 
-    def add_constraint(self,c):
-        '''Add constraint to CSP. Note that all variables in the 
-           constraints scope must already have been added to the CSP'''
+    def add_constraint(self, c):
+        """Add constraint to CSP. Note that all variables in the
+           constraints scope must already have been added to the CSP"""
         if not type(c) is Constraint:
-            print("Trying to add non constraint ", c, " to CSP object")
-        else:
-            for v in c.scope:
-                if not v in self.vars_to_cons:
-                    print("Trying to add constraint ", c, " with unknown variables to CSP object")
-                    return
-                self.vars_to_cons[v].append(c)
-            self.cons.append(c)
+            raise TypeError(
+                "Trying to add non constraint {} to CSP object".format(c))
+        if any((v not in self.vars_to_cons for v in c.scope)):
+            print("Trying to add constraint", c,
+                  "with unknown variables to CSP object", file=sys.stderr)
+            return
+
+        for v in c.scope:
+            self.vars_to_cons[v].add(c)
+        self.cons.add(c)
 
     def get_all_cons(self):
         """
         return list of all constraints in the CSP
 
-        :rtype: list[Constraint]
+        :rtype: set[Constraint]
         """
-        return self.cons
-        
+        return set(self.cons)
+
     def get_cons_with_var(self, var):
         """
         return list of constraints that include var in their scope
 
-        :rtype: list[Constraint]
+        :rtype: set[Constraint]
         """
-        return list(self.vars_to_cons[var])
+        return set(self.vars_to_cons[var])
 
     def get_all_vars(self):
         """
@@ -400,15 +400,14 @@ class CSP:
 
         return list(self.vars)
 
-    def print_all(self):
-        print("CSP", self.name)
-        print("   Variables = ", self.vars)
-        print("   Constraints = ", self.cons)
+    def __str__(self):
+        return "CSP {}\n".format(self.name) + \
+               "   Variables = {}\n".format(self.vars) + \
+               "   Constraints = {}".format(self.cons)
 
-
-    def print_soln(self):
-        print("CSP", self.name, " Assignments = ")
-        for v in self.vars:
-            print(v, " = ", v.get_assigned_value(), "    ", end='')
-        print("")
-
+    def solution_str(self):
+        return "CSP {}\n".format(self.name) + \
+               "    Assignments: \n" + \
+               "\n".join(
+                   ("{} = {}".format(v, v.get_assigned_value()) for
+                    v in self.vars))

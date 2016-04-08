@@ -69,7 +69,7 @@ from collections.abc import Iterable, Sequence
 from csp.cspbase import *
 
 
-def prop_BT(csp, newVar=None):
+def prop_BT(csp, new_var=None):
     """
     (Description from CSC384 A2 Starter Code)
 
@@ -78,27 +78,27 @@ def prop_BT(csp, newVar=None):
 
     :param csp: CSP instance
     :type csp: CSP
-    :param newVar: Optional new variable
-    :type newVar: Variable
+    :param new_var: Optional new variable
+    :type new_var: Variable
     :return: Dead-end and list of pruned values
     :rtype: bool, list[(Variable, object)]
     """
 
-    if not newVar:
+    if not new_var:
         return True, []
-    for c in csp.get_cons_with_var(newVar):
-        if c.get_n_unasgn() == 0:
+    for c in csp.get_cons_with_var(new_var):
+        if c.get_num_unassigned() == 0:
             vals = []
             vars = c.get_scope()
             for var in vars:
                 vals.append(var.get_assigned_value())
-            if not c.check(vals):
+            if not c.check():
                 return False, []
+
     return True, []
 
 
-def prop_fc(csp: CSP, newVar: Variable=None) -> \
-        (bool, list((Variable, object))):
+def prop_fc(csp, new_var=None):
     """
     (Description from CSC384 A2 Starter Code)
 
@@ -132,8 +132,8 @@ def prop_fc(csp: CSP, newVar: Variable=None) -> \
 
     :param csp: CSP Instance
     :type csp: CSP
-    :param newVar: Optional new variable
-    :type newVar: Variable
+    :param new_var: Optional new variable
+    :type new_var: Variable
     :return: False if a dead end has been detected and
         True otherwise; List of variable/value pairs which were pruned
     :rtype: bool, list[(Variable, object)]
@@ -141,7 +141,7 @@ def prop_fc(csp: CSP, newVar: Variable=None) -> \
     pruned = []
     dwo = False
     constraints = \
-        csp.get_cons_with_var(newVar) if newVar else csp.get_all_cons()
+        csp.get_cons_with_var(new_var) if new_var else csp.get_all_cons()
 
     # Filter accepts constraints with 1 un-instantiated variable
     # Sort constraints in increasing order of the current domain size of the
@@ -149,26 +149,27 @@ def prop_fc(csp: CSP, newVar: Variable=None) -> \
     filtered_constraints = \
         sorted(
             filter(
-                lambda c: c.get_n_unasgn() == 1,
+                lambda c: c.get_num_unassigned() == 1,
                 constraints),
-            key=lambda c: c.get_unasgn_vars()[0].cur_domain_size()
+            key=lambda c: list(c.get_unassigned_vars())[0].get_cur_domain_size()
         )
     """ :type: filter[Constraint] """
 
     for constraint in filtered_constraints:
-        var = constraint.get_unasgn_vars()[0]
+        var = constraint.get_unassigned_vars().pop()
         ''' :type: Variable '''
-        for value in var.cur_domain():
+        for value in var.get_cur_domain():
             var.assign(value)
             # Begin FCCheck
-            if not constraint.check(map(
-                    lambda v: v.get_assigned_value(),
-                    constraint.get_scope())):
+            if not constraint.check():
+            # if not constraint.check(map(
+            #         lambda v: v.get_assigned_value(),
+            #         constraint.get_scope())):
                 var.prune_value(value)
                 pruned.append((var, value))
             # End FCCheck
             var.unassign()
-        if var.cur_domain_size() == 0:
+        if var.get_cur_domain_size() == 0:
             # Domain wipe out
             return False, pruned
     return True, list(set(pruned))
@@ -270,8 +271,7 @@ class GACQueue:
         return False
 
 
-def prop_gac(csp: CSP, newVar: Variable=None) -> \
-        (bool, list((Variable, object))):
+def prop_gac(csp, new_var=None):
     """
     (Description from CSC384 A2 Starter Code)
 
@@ -299,26 +299,26 @@ def prop_gac(csp: CSP, newVar: Variable=None) -> \
 
     :param csp: CSP Instance
     :type csp: CSP
-    :param newVar: Optional new variable
-    :type newVar: Variable
+    :param new_var: Optional new variable
+    :type new_var: Variable
     :return: False if a dead end has been detected and
         True otherwise; List of variable/value pairs which were pruned
     :rtype: bool, list[(Variable, object)]
     """
     pruned = []
     constraints = \
-        csp.get_cons_with_var(newVar) if newVar else csp.get_all_cons()
+        csp.get_cons_with_var(new_var) if new_var else csp.get_all_cons()
 
     # Enqueue all constraints to the GAC Queue
     # Sort constraints by number of unassigned variables (increasing)
-    gac_queue = GACQueue(sorted(constraints, key=lambda c: c.get_n_unasgn()))
+    gac_queue = GACQueue(sorted(constraints, key=lambda c: c.get_num_unassigned()))
     # GAC Enforce
     while gac_queue:
         constraint = gac_queue.dequeue()
         # Iterate through variables, sorted by current domain size (increasing)
         for variable in sorted(constraint.get_scope(),
-                               key=lambda v: v.cur_domain_size()):
-            for value in variable.cur_domain():
+                               key=lambda v: v.get_cur_domain_size()):
+            for value in variable.get_cur_domain():
                 # Check this variable/value pair for a valid assignment for all
                 # other variables in constraint's scope
                 if not constraint.has_support(variable, value):
@@ -326,7 +326,7 @@ def prop_gac(csp: CSP, newVar: Variable=None) -> \
                     variable.prune_value(value)
                     pruned.append((variable, value))
                     # Check for DWO
-                    if variable.cur_domain_size() == 0:
+                    if variable.get_cur_domain_size() == 0:
                         gac_queue.clear()
                         return False, pruned
                     else:

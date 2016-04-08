@@ -1,4 +1,5 @@
 from csp.cspbase import *
+import logging, time
 
 
 class BacktrackingSearch:
@@ -6,7 +7,7 @@ class BacktrackingSearch:
     Encapsulates statistics and bookkeeping for backtracking search.
     """
 
-    def __init__(self, csp):
+    def __init__(self, csp, logLevel):
         '''
         csp == CSP object specifying the CSP to be solved
         '''
@@ -21,7 +22,8 @@ class BacktrackingSearch:
 
         # Tracks unassigned variables
         unassigned_vars = list()
-
+        self.logger = logging.getLogger('btLogger')
+        self.logger.setLevel(logLevel)
         self.TRACE = False
         self.runtime = 0
 
@@ -32,7 +34,6 @@ class BacktrackingSearch:
     def trace_off(self):
         '''Turn search trace off'''
         self.TRACE = False
-
 
     def clear_stats(self):
         '''Initialize counters'''
@@ -55,7 +56,7 @@ class BacktrackingSearch:
         for var in self.csp.vars:
             if var.is_assigned():
                 var.unassign()
-            var.restore_curdom()
+            var.restore_cur_domain()
 
     def extract_mr_var(self):
         """
@@ -67,10 +68,10 @@ class BacktrackingSearch:
         mv = None
         for v in self.unasgn_vars:
             if md < 0:
-                md = v.cur_domain_size()
+                md = v.get_cur_domain_size()
                 mv = v
-            elif v.cur_domain_size() < md:
-                md = v.cur_domain_size()
+            elif v.get_cur_domain_size() < md:
+                md = v.get_cur_domain_size()
                 mv = v
         self.unasgn_vars.remove(mv)
         return mv
@@ -128,12 +129,11 @@ class BacktrackingSearch:
         status, prunings = propagator(self.csp)  # initial propagate no assigned variables.
         self.num_prunings = self.num_prunings + len(prunings)
 
-        if self.TRACE:
-            print(len(self.unasgn_vars), " unassigned variables at start of search")
-            print("Root Prunings: ", prunings)
+        self.logger.info(len(self.unasgn_vars), " unassigned variables at start of search")
+        self.logger.info("Root Prunings: ", prunings)
 
         if status == False:
-            print("CSP{} detected contradiction at root".format(
+            self.logger.info("CSP{} detected contradiction at root".format(
                 self.csp.name))
         else:
             status = self.bt_recurse(propagator, 1)   # now do recursive search
@@ -143,9 +143,9 @@ class BacktrackingSearch:
         if status == False:
             print("CSP{} unsolved. Has no solutions".format(self.csp.name))
         if status == True:
-            print("CSP {} solved. CPU Time used = {}".format(self.csp.name,
+            self.logger.info("CSP {} solved. CPU Time used = {}".format(self.csp.name,
                                                              time.process_time() - stime))
-            self.csp.print_soln()
+            self.csp.solution_str()
 
         print("bt_search finished")
         self.print_stats()
@@ -158,38 +158,42 @@ class BacktrackingSearch:
 
         # TODO: Re-implement
 
-        if self.TRACE:
-            print('  ' * level, "bt_recurse level ", level)
+        #print('  ' * level, "bt_recurse level ", level)
 
         if not self.unasgn_vars:
-            #all variables assigned
+            # all variables assigned
             return True
         else:
             var = self.extract_mr_var()
-            if self.TRACE:
-                print('  ' * level, "bt_recurse var = ", var)
 
-            for val in var.cur_domain():
+            #print('  ' * level, "bt_recurse var = ", var)
 
-                if self.TRACE:
-                    print('  ' * level, "bt_recurse trying", var, "=", val)
+            for val in var.get_cur_domain():
+                #print('  ' * level, "bt_recurse trying", var, "=", val)
 
                 var.assign(val)
+                id_prunings = []
+                for var in self.csp.get_all_vars():
+                    for dom_val in var.get_cur_domain():
+                        if val.id == dom_val.id:
+                            var.prune_value(dom_val)
+                            id_prunings.append((var, dom_val))
                 self.num_decisions = self.num_decisions + 1
 
                 status, prunings = propagator(self.csp, var)
                 self.num_prunings = self.num_prunings + len(prunings)
 
-                if self.TRACE:
-                    print('  ' * level, "bt_recurse prop status = ", status)
-                    print('  ' * level, "bt_recurse prop pruned = ", prunings)
+                #print('  ' * level, "bt_recurse prop status = ", status)
+                #print('  ' * level, "bt_recurse prop pruned = ", prunings)
+
+
+                prunings.extend(id_prunings)
 
                 if status:
                     if self.bt_recurse(propagator, level+1):
                         return True
 
-                if self.TRACE:
-                    print('  ' * level, "bt_recurse restoring ", prunings)
+                #print('  ' * level, "bt_recurse restoring ", prunings)
                 self.restoreValues(prunings)
                 var.unassign()
 
