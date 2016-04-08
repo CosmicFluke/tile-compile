@@ -411,10 +411,10 @@ class GridVariable(Variable):
         """
         x, y = self.x_pos, self.y_pos
         n_x, n_y = neighbor.x_pos, neighbor.y_pos
-        diff_to_relation = {(1, 0): RIGHT,
-                            (-1, 0): LEFT,
-                            (0, -1): ABOVE,
-                            (0, 1): BELOW}
+        diff_to_relation = {(1, 0): LEFT,
+                            (-1, 0): RIGHT,
+                            (0, -1): BELOW,
+                            (0, 1): ABOVE}
         return diff_to_relation[(n_x - x, n_y - y)]
 
 
