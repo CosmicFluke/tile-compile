@@ -172,12 +172,12 @@ class BacktrackingSearch:
                 #print('  ' * level, "bt_recurse trying", var, "=", val)
 
                 var.assign(val)
-                id_prunings = []
-                for var in self.csp.get_all_vars():
-                    for dom_val in var.get_cur_domain():
-                        if val.id == dom_val.id:
-                            var.prune_value(dom_val)
-                            id_prunings.append((var, dom_val))
+                # id_prunings = []
+                # for var in self.csp.get_all_vars():
+                #     for dom_val in var.get_cur_domain():
+                #         if val.id == dom_val.id:
+                #             var.prune_value(dom_val)
+                #             id_prunings.append((var, dom_val))
                 self.num_decisions = self.num_decisions + 1
 
                 status, prunings = propagator(self.csp, var)
@@ -187,7 +187,7 @@ class BacktrackingSearch:
                 #print('  ' * level, "bt_recurse prop pruned = ", prunings)
 
 
-                prunings.extend(id_prunings)
+                # prunings.extend(id_prunings)
 
                 if status:
                     if self.bt_recurse(propagator, level+1):
