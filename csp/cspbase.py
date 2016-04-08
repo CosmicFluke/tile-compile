@@ -286,7 +286,8 @@ class Constraint:
         """
         # Sequence of 2-tuples with variables and respective current domains
         var_to_cur_domain = ((variable, variable.get_cur_domain()) for
-                           variable in self.scope if variable is not var)
+                           variable in self.scope)
+        print(list(var_to_cur_domain))
         variables, cur_domains = tuple(zip(*var_to_cur_domain))
 
         return any(map(
