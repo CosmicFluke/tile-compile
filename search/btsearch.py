@@ -141,7 +141,7 @@ class BacktrackingSearch:
 
         self.restoreValues(prunings)
         if status == False:
-            self.logger.info("CSP{} unsolved. Has no solutions".format(self.csp.name))
+            print("CSP{} unsolved. Has no solutions".format(self.csp.name))
         if status == True:
             self.logger.info("CSP {} solved. CPU Time used = {}".format(self.csp.name,
                                                              time.process_time() - stime))
@@ -177,14 +177,14 @@ class BacktrackingSearch:
                 status, prunings = propagator(self.csp, var)
                 self.num_prunings = self.num_prunings + len(prunings)
 
-                self.logger.info('  ' * level, "bt_recurse prop status = ", status)
-                self.logger.info('  ' * level, "bt_recurse prop pruned = ", prunings)
+                print('  ' * level, "bt_recurse prop status = ", status)
+                print('  ' * level, "bt_recurse prop pruned = ", prunings)
 
                 if status:
                     if self.bt_recurse(propagator, level+1):
                         return True
 
-                self.logger.info('  ' * level, "bt_recurse restoring ", prunings)
+                print('  ' * level, "bt_recurse restoring ", prunings)
                 self.restoreValues(prunings)
                 var.unassign()
 
