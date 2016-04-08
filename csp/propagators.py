@@ -156,7 +156,7 @@ def prop_fc(csp, new_var=None):
     """ :type: filter[Constraint] """
 
     for constraint in filtered_constraints:
-        var = list(constraint.get_unassigned_vars())[0]
+        var = constraint.get_unassigned_vars().pop()
         ''' :type: Variable '''
         for value in var.get_cur_domain():
             var.assign(value)

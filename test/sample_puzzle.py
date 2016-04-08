@@ -49,11 +49,11 @@ def test_2_puzzle():
 def test_3_puzzle():
     print('Beginning puzzle 3: 3x3 with one terminal node')
     try:
-        num_tiles = {CornerTile: 3, CrossTile: 1, TTile: 5}
+        num_tiles = {CornerTile: 2, LineTile: 4, TTile: 2, EmptyTile: 1}
         tiles = create_tiles(num_tiles)
 
         # TODO: terminal node representation
-        terminal_nodes = {((2, 2), S)}
+        terminal_nodes = frozenset({((2, 2), S), ((0, 2), S)})
 
         tileboard = TileBoard('Simple Path Puzzle', tiles, terminal_nodes, 3)
         solver = BacktrackingSearch(tileboard, 20)

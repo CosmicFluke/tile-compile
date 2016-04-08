@@ -35,18 +35,22 @@ class TileBoard(CSP):
                         i.e. the tile's edge should align with the goal
     """
 
-    def __init__(self, name, tiles, exit_points, dim=3):
+    def __init__(self, name, tiles, terminal_nodes, dim=3):
         self.name = name
         self.tiles = tiles
         self.dimensions = dim
-        self.exit_points = exit_points
+        self.terminal_nodes = terminal_nodes
         variable_grid = TileBoard.create_board(self.dimensions,
                                                self.tiles,
-                                               exit_points)
+                                               terminal_nodes)
         CSP.__init__(self, name, itertools.chain(*variable_grid))
         self._add_all_diff_constraint()
         self._add_adjacency_constraints(variable_grid)
         self._add_border_constraints(variable_grid)
+        for constraint in self.get_all_cons():
+            if str(constraint)[0] == "B":
+                print(constraint)
+        print("foo")
 
     def _add_adjacency_constraints(self, var_grid):
         """
@@ -153,7 +157,7 @@ class TileBoard(CSP):
             return GridVariable('V{}'.format((m, n)), tiles, m, n, term_edges)
 
         def get_terminal_edges(m, n):
-            return frozenset(term[1] for term in terminals if {m, n} == term[0])
+            return frozenset(term[1] for term in terminals if (m, n) == term[0])
 
         return [[make_grid_variable(i, j, get_terminal_edges(i, j))
                  for i in range(dim)]
