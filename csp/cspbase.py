@@ -94,6 +94,8 @@ class Variable:
         self.domain = set(domain)  # Make a copy of passed domain
         self.cur_domain = {val: True for val in self.domain}  # using list
         self.assignedValue = None
+        self.cur_domain_flag = True
+        self.cur_domain_cache = self.get_cur_domain()
 
     def add_domain_values(self, values):
         """
@@ -105,6 +107,7 @@ class Variable:
         for val in values:
             self.domain.add(val)
             self.cur_domain[val] = True
+        self.cur_domain_flag = True
 
     def domain_size(self):
         """
@@ -126,10 +129,12 @@ class Variable:
     def prune_value(self, value):
         """Remove value from CURRENT domain"""
         self.cur_domain[value] = False
+        self.cur_domain_flag = True
 
     def unprune_value(self, value):
         """Restore value to CURRENT domain"""
         self.cur_domain[value] = True
+        self.cur_domain_flag = True
 
     def get_cur_domain(self):
         """
@@ -137,8 +142,14 @@ class Variable:
             only assigned value is viewed as being in current domain)
         :rtype: set
         """
-        return set(filter(self.cur_domain.get, self.cur_domain.keys())) \
-            if not self.is_assigned() else {self.get_assigned_value()}
+        if self.is_assigned():
+            return [self.get_assigned_value()]
+        if not self.cur_domain_flag:
+            return self.cur_domain_cache
+        self.cur_domain_cache = \
+            list(filter(self.cur_domain.get, self.cur_domain.keys()))
+        self.cur_domain_flag = False
+        return self.cur_domain_cache
 
     def in_cur_domain(self, value):
         """
@@ -158,8 +169,8 @@ class Variable:
 
         :rtype: int
         """
-        return len(list(filter(self.cur_domain.get, self.cur_domain.keys()))) \
-            if not self.is_assigned() else 1
+        return 1 if self.is_assigned() else len(self.cur_domain_cache) if not \
+            self.cur_domain_flag else len(self.get_cur_domain())
 
     def restore_cur_domain(self):
         """
@@ -167,6 +178,7 @@ class Variable:
         """
         for val in self.domain:
             self.cur_domain[val] = True
+        self.cur_domain_flag = True
 
     #
     # methods for assigning and un-assigning
@@ -186,8 +198,8 @@ class Variable:
                   "assigned or illegal value (not in current domain)"
             print(msg, file=sys.stderr)
             return
-
         self.assignedValue = value
+        self.cur_domain_flag = True
 
     def unassign(self):
         """
@@ -199,6 +211,7 @@ class Variable:
             return
 
         self.assignedValue = None
+        self.cur_domain_flag = True
 
     def get_assigned_value(self):
         """return assigned value...returns None if is unassigned"""
@@ -242,7 +255,7 @@ class Constraint:
         self.scope = set(scope)
         self.name = name
         self.constraint_function = function
-        # self.satisfying_cache = dict()
+        self.sat_mappings = set()
 
     def get_scope(self):
         """
@@ -283,16 +296,26 @@ class Constraint:
 
         :rtype: bool
         """
+        print("Var: {}\t\tVal: {}".format(var, val))
+        if var not in self.scope:
+            return True
+
+        if len(self.scope) == 1:
+            return self.constraint_function({var: val})
+
         # Sequence of 2-tuples with variables and respective current domains
         var_to_cur_domain = ((variable, variable.get_cur_domain()) for
-                           variable in self.scope if variable is not var)
-        variables, cur_domains = tuple(zip(*var_to_cur_domain))
+                             variable in self.scope)
+
+        variables, cur_domains = zip(*var_to_cur_domain)
 
         return any(map(
             # Calls to constraint function given var-value mappings for each
             # assignment
             lambda assignment:
-                self.constraint_function(dict(zip(variables, assignment))),
+                frozenset(zip(variables, assignment)) in self.sat_mappings or
+                self.constraint_function(dict(zip(variables, assignment))) or
+                self.sat_mappings.add(frozenset(zip(variables, assignment))),
             # Product of all possible assignments given current domains
             itertools.product(*cur_domains)
         ))
