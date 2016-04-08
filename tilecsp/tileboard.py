@@ -47,10 +47,6 @@ class TileBoard(CSP):
         self._add_all_diff_constraint()
         self._add_adjacency_constraints(variable_grid)
         self._add_border_constraints(variable_grid)
-        for constraint in self.get_all_cons():
-            if str(constraint)[0] == "B":
-                print(constraint)
-        print("foo")
 
     def _add_adjacency_constraints(self, var_grid):
         """
@@ -75,6 +71,9 @@ class TileBoard(CSP):
             return var1[1].has_edge(edges[0]) == var2[1].has_edge(edges[1])
 
         for pair in TileBoard.get_adjacent_pairs(var_grid):
+            var1, var2 = tuple(pair)
+            var1.add_neighbor(var2)
+            var2.add_neighbor(var1)
             self.add_constraint(
                 Constraint("Pair {}".format(pair), 
                            pair, 
@@ -394,26 +393,36 @@ class GridVariable(Variable):
         self.x_pos = x
         self.y_pos = y
         self.terminal_edges = terminal_edges
+        self.neighbors = dict()
+        self.path_id = dict()
 
     def get_coords(self):
         return self.x_pos, self.y_pos
 
-    def set_path_ids(self, path_ids):
-        """
-        (What does it do?)
-        """
-        # TODO: Implement
-        raise NotImplementedError
+    def assign(self, value):
+        super().assign(value)
+        for direction in CORRESPONDING_EDGES:
+            edges = CORRESPONDING_EDGES[direction]
+            if value.has_edge(edges[0]):
+                self.path_id[edges[0]] = self.neighbors[direction].get_path_id(edges[1])
+        for edge in value.get_edges():
+            for conn_edge in value.get_paths(edge):
+                if conn_edge not in self.path_id:
+                    self.path_id[conn_edge] = self.path_id[edge]
 
-    def get_path_id(self, dir):
+    def add_neighbor(self, neighbor):
+        self.neighbors[self.relation_to_neighbor(neighbor)] = neighbor
+
+    def get_path_id(self, edge):
         """
         Return the neighbor in the direction desired.
 
         :type dir: int
         """
-        # TODO: where is path_ids defined?
-        if dir in self.path_ids:
-            return self.path_ids[dir]
+        if self.get_assigned_value().has_edge(edge):
+            return self.path_id[edge]
+        else:
+            return None
 
     def get_exit_points(self):
         return self.terminal_edges
