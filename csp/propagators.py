@@ -88,10 +88,9 @@ def prop_BT(csp, new_var=None):
         return True, []
     for c in csp.get_cons_with_var(new_var):
         if c.get_num_unassigned() == 0:
-            vals = []
-            vars = c.get_scope()
-            for var in vars:
-                vals.append(var.get_assigned_value())
+            # vals = []
+            # for var in c.get_scope():
+            #     vals.append(var.get_assigned_value())
             if not c.check():
                 return False, []
 
@@ -168,7 +167,8 @@ def prop_fc(csp, new_var=None):
                 var.prune_value(value)
                 pruned.append((var, value))
             # End FCCheck
-            var.unassign()
+            else:
+                var.unassign()
         if var.get_cur_domain_size() == 0:
             # Domain wipe out
             return False, pruned

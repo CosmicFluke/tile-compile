@@ -150,6 +150,18 @@ class BacktrackingSearch:
         print("bt_search finished")
         self.print_stats()
 
+    def prune_same_id(self, val):
+        """ Prune values with same Tile ID as `val` from all variables """
+        id_prunings = []
+        for var in self.csp.get_all_vars():
+            if var.is_assigned():
+                continue
+            for dom_val in var.get_cur_domain():
+                if val.id == dom_val.id:
+                    var.prune_value(dom_val)
+                    id_prunings.append((var, dom_val))
+        return id_prunings
+
     def bt_recurse(self, propagator, level):
         """
         Return true if found solution. False if still need to search.
@@ -174,14 +186,7 @@ class BacktrackingSearch:
                 var.assign(val)
 
                 # Prune values with same Tile ID as `val` from all variables
-                id_prunings = []
-                for var in self.csp.get_all_vars():
-                    if var.is_assigned():
-                        continue
-                    for dom_val in var.get_cur_domain():
-                        if val.id == dom_val.id:
-                            var.prune_value(dom_val)
-                            id_prunings.append((var, dom_val))
+                id_prunings = self.prune_same_id(val)
 
                 self.num_decisions = self.num_decisions + 1
 
@@ -192,7 +197,7 @@ class BacktrackingSearch:
                 #print('  ' * level, "bt_recurse prop pruned = ", prunings)
 
 
-                # prunings.extend(id_prunings)
+                prunings.extend(id_prunings)
 
                 if status:
                     if self.bt_recurse(propagator, level+1):
