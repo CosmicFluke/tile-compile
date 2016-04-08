@@ -71,9 +71,9 @@ class TileBoard(CSP):
             return var1[1].has_edge(edges[0]) == var2[1].has_edge(edges[1])
 
         for pair in TileBoard.get_adjacent_pairs(var_grid):
-            var1, var2 = tuple(pair)
-            var1.add_neighbor(var2)
-            var2.add_neighbor(var1)
+            #var1, var2 = tuple(pair)
+            #var1.add_neighbor(var2)
+            #var2.add_neighbor(var1)
             self.add_constraint(
                 Constraint("Pair {}".format(pair), 
                            pair, 
@@ -399,16 +399,16 @@ class GridVariable(Variable):
     def get_coords(self):
         return self.x_pos, self.y_pos
 
-    def assign(self, value):
-        super().assign(value)
-        for direction in CORRESPONDING_EDGES:
-            edges = CORRESPONDING_EDGES[direction]
-            if value.has_edge(edges[0]):
-                self.path_id[edges[0]] = self.neighbors[direction].get_path_id(edges[1])
-        for edge in value.get_edges():
-            for conn_edge in value.get_paths(edge):
-                if conn_edge not in self.path_id:
-                    self.path_id[conn_edge] = self.path_id[edge]
+    #def assign(self, value):
+        # super().assign(value)
+        # for direction in CORRESPONDING_EDGES:
+        #     edges = CORRESPONDING_EDGES[direction]
+        #     if value.has_edge(edges[0]):
+        #         self.path_id[edges[0]] = self.neighbors[direction].get_path_id(edges[1])
+        # for edge in value.get_edges():
+        #     for conn_edge in value.get_paths(edge):
+        #         if conn_edge not in self.path_id:
+        #             self.path_id[conn_edge] = self.path_id[edge]
 
     def add_neighbor(self, neighbor):
         self.neighbors[self.relation_to_neighbor(neighbor)] = neighbor
