@@ -152,10 +152,10 @@ class TileBoard(CSP):
         def make_grid_variable(m, n, term_edges):
             return GridVariable('V{}'.format((m, n)), tiles, m, n, term_edges)
 
-        def get_terminal_edges(m, n):
-            return frozenset(term[1] for term in terminals if {m, n} == term[0])
+        def get_terminal_edges(m, n, t):
+            return frozenset((term[1] for term in t if (m, n) == term[0]))
 
-        return [[make_grid_variable(i, j, get_terminal_edges(i, j))
+        return [[make_grid_variable(i, j, get_terminal_edges(i, j, terminals))
                  for i in range(dim)]
                 for j in range(dim)]
 
@@ -203,7 +203,9 @@ class Tile:
         self.edges_with_roads = edges
         # Default to paths between all edges unless otherwise specified
         self.paths = paths if paths is not None else \
-            set(itertools.combinations(edges, 2)) if self.edges_with_roads else set()
+            set(itertools.combinations(edges, 2)) if self.edges_with_roads \
+            else set()
+        self.type = "AbsTile"
 
     def get_edges(self):
         """
@@ -248,6 +250,9 @@ class Tile:
     def __str__(self):
         return "+".join(str(path) for path in self.paths)
 
+    def __repr__(self):
+        return "{}[{}] : ".format(self.type, self.id) + str(self)
+
     def graphic_str(self):
         d = dict(zip(Tile.EDGES, ("|", "-", "|", "-")))
         edge_chars = map(lambda e: d[e[0]] if e[1] else " ",
@@ -288,6 +293,7 @@ class Tile:
 class EmptyTile(Tile):
     def __init__(self, tile_id, orientation):
         super().__init__(tile_id, set())
+        self.type = "EmptyTile"
 
 
 class TTile(Tile):
@@ -303,6 +309,7 @@ class TTile(Tile):
 
     def __init__(self, tile_id, orientation):
         super().__init__(tile_id, TTile.CONFIGURATIONS[orientation])
+        self.type = "TTile"
 
 
 class CrossTile(Tile):
@@ -313,6 +320,7 @@ class CrossTile(Tile):
 
     def __init__(self, tile_id, orientation=1):
         super().__init__(tile_id, set(Tile.EDGES))
+        self.type = "CrossTile"
 
     # staticmethod get_orientations_for_edges(edges) is same as superclass
 
@@ -329,6 +337,7 @@ class CornerTile(Tile):
 
     def __init__(self, tile_id, orientation):
         super().__init__(tile_id, CornerTile.CONFIGURATIONS[orientation])
+        self.type = "CornerTile"
 
 
 class LineTile(Tile):
@@ -341,6 +350,7 @@ class LineTile(Tile):
 
     def __init__(self, tile_id, orientation):
         super().__init__(tile_id, LineTile.CONFIGURATIONS[orientation])
+        self.type = "LineTile"
 
 
 class BridgeCrossTile(Tile):
@@ -352,6 +362,7 @@ class BridgeCrossTile(Tile):
         super().__init__(tile_id,
                          CrossTile.CONFIGURATIONS[orientation],
                          BridgeCrossTile.PATHS)
+        self.type = "BridgeTile"
 
 
 class OppositeCornersTile(Tile):
@@ -366,6 +377,7 @@ class OppositeCornersTile(Tile):
         super().__init__(tile_id,
                          CrossTile.CONFIGURATIONS[orientation],
                          OppositeCornersTile.PATHS[orientation])
+        self.type = "OppCorTile"
 
 
 class GridVariable(Variable):
