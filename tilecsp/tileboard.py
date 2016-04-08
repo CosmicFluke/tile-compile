@@ -145,7 +145,7 @@ class TileBoard(CSP):
         :param tiles:  list of Tiles (initial domain for each variable in
             board)
         :type tiles: list[Tile]
-
+        :type terminals: set[tuple[tuple[int], str, int]]
         :return: n x n matrix, each element is a Variable with initial domain
             being the tiles array
         :rtype: list[list[Variable]]
@@ -153,10 +153,13 @@ class TileBoard(CSP):
         tiles = set(tiles)
 
         def make_grid_variable(m, n, term_edges):
-            return GridVariable('V{}'.format((m, n)), tiles, m, n, term_edges)
+            new_var = GridVariable('V{}'.format((m, n)),
+                                   tiles, m, n, term_edges)
+            new_var.set_terminal_path_ids(dict(term_edges))
 
         def get_terminal_edges(m, n, t):
-            return frozenset((term[1] for term in t if (m, n) == term[0]))
+            return frozenset(
+                ((term[1], term[2]) for term in t if (m, n) == term[0]))
 
         return [[make_grid_variable(i, j, get_terminal_edges(i, j, terminals))
                  for i in range(dim)]
@@ -386,6 +389,7 @@ class OppositeCornersTile(Tile):
 
 
 class GridVariable(Variable):
+    PATH_ID = 0
 
     def __init__(self, name, domain, x, y, terminal_edges=frozenset()):
         # terminal_edges param must be frozenset
@@ -394,7 +398,14 @@ class GridVariable(Variable):
         self.y_pos = y
         self.terminal_edges = terminal_edges
         self.neighbors = dict()
-        self.path_id = dict()
+        self.path_ids = dict((edge, None) for edge in Tile.EDGES)
+
+    def update_terminal_path_ids(self, term_id_map):
+        assert set(term_id_map.keys()).issubset(set(self.path_ids.keys()))
+        self.path_ids.update(term_id_map)
+
+    def set_terminal_path_id(self, direction, path_id):
+        self.path_ids[direction] = path_id
 
     def get_coords(self):
         return self.x_pos, self.y_pos
@@ -404,23 +415,23 @@ class GridVariable(Variable):
         for direction in CORRESPONDING_EDGES:
             edges = CORRESPONDING_EDGES[direction]
             if value.has_edge(edges[0]):
-                self.path_id[edges[0]] = self.neighbors[direction].get_path_id(edges[1])
+                self.path_ids[edges[0]] = self.neighbors[direction].get_path_id(edges[1])
         for edge in value.get_edges():
             for conn_edge in value.get_paths(edge):
-                if conn_edge not in self.path_id:
-                    self.path_id[conn_edge] = self.path_id[edge]
+                if conn_edge not in self.path_ids:
+                    self.path_ids[conn_edge] = self.path_ids[edge]
 
     def add_neighbor(self, neighbor):
         self.neighbors[self.relation_to_neighbor(neighbor)] = neighbor
 
-    def get_path_id(self, edge):
+    def get_path_id(self, direction):
         """
         Return the neighbor in the direction desired.
 
-        :type dir: int
+        :type direction: str
         """
-        if self.get_assigned_value().has_edge(edge):
-            return self.path_id[edge]
+        if self.get_assigned_value().has_edge(direction):
+            return self.path_ids[direction]
         else:
             return None
 
