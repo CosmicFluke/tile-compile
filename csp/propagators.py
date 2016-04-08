@@ -151,12 +151,12 @@ def prop_fc(csp, new_var=None):
             filter(
                 lambda c: c.get_num_unassigned() == 1,
                 constraints),
-            key=lambda c: c.get_unassigned_vars()[0].get_cur_domain_size()
+            key=lambda c: list(c.get_unassigned_vars())[0].get_cur_domain_size()
         )
     """ :type: filter[Constraint] """
 
     for constraint in filtered_constraints:
-        var = constraint.get_unassigned_vars()[0]
+        var = list(constraint.get_unassigned_vars())[0]
         ''' :type: Variable '''
         for value in var.get_cur_domain():
             var.assign(value)

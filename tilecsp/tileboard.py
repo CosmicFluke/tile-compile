@@ -109,7 +109,7 @@ class TileBoard(CSP):
             """
             var, tile = list(var_map.items())[0]
             has_edge = tile.has_edge(border_edge)
-            return not has_edge if terminal else has_edge
+            return has_edge if terminal else not has_edge
 
         def make_constraint(var, edge, is_terminal):
             return Constraint(
@@ -173,23 +173,18 @@ class TileBoard(CSP):
         while q:
 
             x, y = q.pop(0)
-            current_cell = grid[x][y]
+            current_cell = grid[y][x]
             # Get successor pairs (0, 1, or 2)
             # TODO verify
 
-            adjacent = [tuple((current_cell, s)) for s in TileBoard.get_grid_successors(x, y, max_x, max_y) if s is not None]
-            q.extend((pair[1] for pair in adjacent if pair not in pairs))
-            adjacent = {tuple((current_cell, grid[s[0]][s[1]])) for current_cell, s in adjacent}
+            adjacent = [(current_cell, s)
+                        for s in TileBoard.get_grid_successors(x, y, max_x, max_y)
+                        if s is not None]
+            q.extend((pair[1] for pair in adjacent if (pair[0], grid[pair[1][1]][pair[1][0]]) not in pairs))
+            adjacent = {tuple((current_cell, grid[s[1]][s[0]])) for current_cell, s in adjacent}
             pairs.update(adjacent)
         pairs = {frozenset((pair)) for pair in pairs}
         return pairs
-        #     adjacent = {tuple((current_cell, s)) for s in TileBoard.get_grid_successors(x, y, max_x, max_y) if s is not None}
-        #     q.extend((pair[1] for pair in adjacent if pair not in pairs))
-        #     pairs.update(adjacent)
-        # new_pairs = set()
-        # for pair in pairs:
-        #     new_pairs.add(frozenset((pair[0], grid[pair[1][0]][pair[1][1]])))
-        # return new_pairs
 
     @staticmethod
     def get_grid_successors(x, y, max_x, max_y):
@@ -222,7 +217,7 @@ class Tile:
         self.edges_with_roads = edges
         # Default to paths between all edges unless otherwise specified
         self.paths = paths if paths is not None else \
-            set(itertools.combinations(edges, 2))
+            set(itertools.combinations(edges, 2)) if self.edges_with_roads else set()
 
     def get_edges(self):
         """
@@ -265,12 +260,15 @@ class Tile:
         return {e1, e2} in self.paths
 
     def __str__(self):
+        return "+".join(str(path) for path in self.paths)
+
+    def graphic_str(self):
         d = dict(zip(Tile.EDGES, ("|", "-", "|", "-")))
-        # edge_chars = map(lambda e: d[e] if e else " ",
-        #                  map(lambda e: e in self.edges_with_roads,
-        #                      Tile.EDGES))
-        # return " {}\n{}-{}\n {}".format(*edge_chars)
-        return self.id
+        edge_chars = map(lambda e: d[e[0]] if e[1] else " ",
+                         map(lambda e: (e, e in self.edges_with_roads),
+                             [N, W, E, S]))
+        return " {}\n{}-{}\n {}".format(*edge_chars)
+
 
     @staticmethod
     def get_orientations_with_edges(tile_class, edges):
@@ -302,6 +300,10 @@ class Tile:
                 if all((p in tile_class.PATHS[o] for p in paths))}
 
 
+class EmptyTile(Tile):
+    def __init__(self, tile_id, orientation):
+        super().__init__(tile_id, set())
+
 class TTile(Tile):
     """
     Represents a tile with a T-shaped road connecting 3 edges
@@ -314,7 +316,7 @@ class TTile(Tile):
     ORIENTATIONS = CONFIGURATIONS.keys()
 
     def __init__(self, tile_id, orientation):
-        Tile.__init__(self, tile_id, TTile.CONFIGURATIONS[orientation])
+        super().__init__(tile_id, TTile.CONFIGURATIONS[orientation])
 
 
 class CrossTile(Tile):
@@ -324,7 +326,7 @@ class CrossTile(Tile):
     CONFIGURATIONS = {1: set(Tile.EDGES)}
 
     def __init__(self, tile_id, orientation=1):
-        Tile.__init__(self, tile_id, set(Tile.EDGES))
+        super().__init__(tile_id, set(Tile.EDGES))
 
     # staticmethod get_orientations_for_edges(edges) is same as superclass
 
@@ -340,7 +342,7 @@ class CornerTile(Tile):
     ORIENTATIONS = CONFIGURATIONS.keys()
 
     def __init__(self, tile_id, orientation):
-        Tile.__init__(self, tile_id, CornerTile.CONFIGURATIONS[orientation])
+        super().__init__(tile_id, CornerTile.CONFIGURATIONS[orientation])
 
 
 class LineTile(Tile):
@@ -352,7 +354,7 @@ class LineTile(Tile):
     ORIENTATIONS = CONFIGURATIONS.keys()
 
     def __init__(self, tile_id, orientation):
-        Tile.__init__(self, tile_id, LineTile.CONFIGURATIONS[orientation])
+        super().__init__(tile_id, LineTile.CONFIGURATIONS[orientation])
 
 
 class BridgeCrossTile(Tile):
@@ -361,7 +363,7 @@ class BridgeCrossTile(Tile):
     PATHS = {frozenset({N, S}), frozenset({E, W})}
 
     def __init__(self, tile_id, orientation):
-        Tile.__init__(self, tile_id,
+        super().__init__(tile_id,
                          CrossTile.CONFIGURATIONS[orientation],
                          BridgeCrossTile.PATHS)
 
@@ -375,7 +377,7 @@ class OppositeCornersTile(Tile):
              2: {frozenset({N, W}), frozenset({S, E})}}
 
     def __init__(self, tile_id, orientation):
-        Tile.__init__(self, tile_id,
+        super().__init__(tile_id,
                          CrossTile.CONFIGURATIONS[orientation],
                          OppositeCornersTile.PATHS[orientation])
 
@@ -383,7 +385,7 @@ class OppositeCornersTile(Tile):
 class GridVariable(Variable):
 
     def __init__(self, name, domain, x, y, bound):
-        Variable.__init__(self, name, domain)
+        super().__init__(name, domain)
         self.x_pos = x
         self.y_pos = y
         self.terminal_edges = frozenset()

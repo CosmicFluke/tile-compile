@@ -29,7 +29,7 @@ def test_2_puzzle():
 
     print('Beginning puzzle 1: Simple path, with two terminal nodes')
     try:
-        num_tiles = {CornerTile : 3, LineTile : 3, TTile : 3}
+        num_tiles = {CornerTile : 4, LineTile : 3, TTile : 2}
         tiles = create_tiles(num_tiles)
 
         # TODO: terminal node representation
@@ -38,20 +38,41 @@ def test_2_puzzle():
         tileboard = TileBoard('Simple Path Puzzle', tiles, terminal_nodes, 3)
 
         solver = BacktrackingSearch(tileboard, 20)
-        solver.bt_search(prop_BT)
+        solver.bt_search(prop_fc)
 
         print(tileboard.solution_str())
-        print("Finished solving puzzle: Simple path\n")
+        print("Finished trying to solve puzzle: Simple path\n")
+
     except Exception:
         print("Error occurred: %r" % traceback.print_exc())
 
 
+def test_3_puzzle():
+    print('Beginning puzzle 1: Simple path, with no terminal nodes')
+    try:
+        num_tiles = {CornerTile: 4, TTile: 4, CrossTile: 1}
+        tiles = create_tiles(num_tiles)
+
+        # TODO: terminal node representation
+        terminal_nodes = []
+
+        tileboard = TileBoard('Simple Path Puzzle', tiles, terminal_nodes, 3)
+
+        solver = BacktrackingSearch(tileboard, 20)
+        solver.bt_search(prop_fc)
+
+        print(tileboard.solution_str())
+        print("Finished trying to solve puzzle: Simple path\n")
+
+    except Exception:
+        print("Error occurred: %r" % traceback.print_exc())
 
 
 def main():
 
     # test_1_puzzle()
-    test_2_puzzle()
+    #test_2_puzzle()
+    test_3_puzzle()
 
 
 if __name__ == "__main__":
