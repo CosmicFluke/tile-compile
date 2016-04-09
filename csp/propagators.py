@@ -65,6 +65,8 @@ propagator == a function with the following template
 # Used for type contracts in reStructuredText docstrings
 from collections.abc import Iterable, Sequence
 
+from tilecsp.tileboard import GridVariable
+
 # A2 CSP API
 from csp.cspbase import *
 
@@ -159,15 +161,20 @@ def prop_fc(csp, new_var=None):
         ''' :type: Variable '''
         for value in var.get_cur_domain():
             var.assign(value)
+
+            # Begin ID pruning
+            id_pruned, dwo = GridVariable.prune_same_id(value,
+                                                        csp.get_all_vars())
+            pruned.extend(id_pruned)
+            if dwo:
+                return False, pruned
+            # End ID pruning
             # Begin FCCheck
             if not constraint.check():
-            # if not constraint.check(map(
-            #         lambda v: v.get_assigned_value(),
-            #         constraint.get_scope())):
                 var.prune_value(value)
                 pruned.append((var, value))
             # End FCCheck
-            else:
+            if var.is_assigned():
                 var.unassign()
         if var.get_cur_domain_size() == 0:
             # Domain wipe out
@@ -311,13 +318,13 @@ def prop_gac(csp, new_var=None):
 
     # Enqueue all constraints to the GAC Queue
     # Sort constraints by number of unassigned variables (increasing)
-    gac_queue = GACQueue(sorted(constraints, key=lambda c: c.get_num_unassigned()))
+    gac_queue = GACQueue(constraints)
     # GAC Enforce
     while gac_queue:
         constraint = gac_queue.dequeue()
         # Iterate through variables, sorted by current domain size (increasing)
-        for variable in sorted(constraint.get_scope(),
-                               key=lambda v: v.get_cur_domain_size()):
+        scope = set(constraint.get_scope())
+        for variable in scope:
             for value in variable.get_cur_domain():
                 # Check this variable/value pair for a valid assignment for all
                 # other variables in constraint's scope

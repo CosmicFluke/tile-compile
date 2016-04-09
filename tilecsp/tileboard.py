@@ -15,6 +15,29 @@ CORRESPONDING_EDGES = {ABOVE: (S, N),
                        LEFT: (E, W)}
 
 
+class ConstraintIterator:
+    def __init__(self, collection):
+        self.collection = sorted(
+            collection,
+            key=lambda c:
+                0 if 0 in c.get_scope().pop().get_coords() else
+                (c.get_num_unassigned() + 1),
+            reverse=True)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.collection:
+            return self.collection.pop()
+        raise StopIteration
+
+    def __len__(self):
+        return len(self.collection)
+
+    def pop(self):
+        return self.collection.pop()
+
 class TileBoard(CSP):
     """
     Attributes:
@@ -443,6 +466,21 @@ class GridVariable(Variable):
                             (0, -1): BELOW,
                             (0, 1): ABOVE}
         return diff_to_relation[(n_x - x, n_y - y)]
+
+    @staticmethod
+    def prune_same_id(val, all_variables):
+        """ Prune values with same Tile ID as `val` from all variables """
+        id_prunings = []
+        dwo_flag = False
+        for var in filter(lambda v: not v.is_assigned(), all_variables):
+            for dom_val in var.get_cur_domain():
+                if val.id == dom_val.id:
+                    var.prune_value(dom_val)
+                    id_prunings.append((var, dom_val))
+                    if var.get_cur_domain_size() == 0:
+                        # Domain wipe-out
+                        return id_prunings, True
+        return id_prunings, dwo_flag
 
 
 def create_tiles(num_tiles):

@@ -71,17 +71,17 @@ def test_3_puzzle():
         print("Error occurred: %r" % traceback.print_exc())
 
 def test_4_puzzle():
-    print('Beginning puzzle 1: Simple path 2x2, with one terminal node')
+    print('Beginning puzzle 1: Simple path 4x4, with one terminal node')
     try:
-        num_tiles = {CornerTile: 3, TTile: 1}
+        num_tiles = {CornerTile: 8, LineTile: 8}
         tiles = create_tiles(num_tiles)
 
-        terminal_nodes = {((0, 0), N)}
+        terminal_nodes = set()
 
-        tileboard = TileBoard('Simple Path Puzzle', tiles, terminal_nodes, 2)
+        tileboard = TileBoard('Simple Path Puzzle', tiles, terminal_nodes, 4)
 
         solver = BacktrackingSearch(tileboard, 20)
-        solver.bt_search(prop_gac)
+        solver.bt_search(prop_fc)
 
         print(tileboard.solution_str())
         print("Finished trying to solve puzzle: Simple path\n")
@@ -110,9 +110,9 @@ def test_trivial_puzzle():
 def main():
 
     #test_1_puzzle()
-    test_2_puzzle()
+    #test_2_puzzle()
     # test_3_puzzle()
-    # test_4_puzzle()
+    test_4_puzzle()
     # test_trivial_puzzle()
     pass
 

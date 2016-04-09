@@ -1,6 +1,6 @@
 from csp.cspbase import *
 import logging, time
-
+from tilecsp.tileboard import GridVariable
 
 class BacktrackingSearch:
     """
@@ -150,27 +150,13 @@ class BacktrackingSearch:
         print("bt_search finished")
         self.print_stats()
 
-    def prune_same_id(self, val):
-        """ Prune values with same Tile ID as `val` from all variables """
-        id_prunings = []
-        for var in self.csp.get_all_vars():
-            if var.is_assigned():
-                continue
-            for dom_val in var.get_cur_domain():
-                if val.id == dom_val.id:
-                    var.prune_value(dom_val)
-                    id_prunings.append((var, dom_val))
-        return id_prunings
-
     def bt_recurse(self, propagator, level):
         """
         Return true if found solution. False if still need to search.
         If top level returns false--> no solution
         """
 
-        # TODO: Re-implement
-
-        #print('  ' * level, "bt_recurse level ", level)
+        # print('  ' * level, "bt_recurse level ", level)
 
         if not self.unasgn_vars:
             # all variables assigned
@@ -178,32 +164,37 @@ class BacktrackingSearch:
         else:
             var = self.extract_mr_var()
 
-            #print('  ' * level, "bt_recurse var = ", var)
+            # print('  ' * level, "bt_recurse var = ", var)
 
             for val in var.get_cur_domain():
-                #print('  ' * level, "bt_recurse trying", var, "=", val)
+                # print('  ' * level, "bt_recurse trying", var, "=", val)
 
                 var.assign(val)
+                prunings = []
 
                 # Prune values with same Tile ID as `val` from all variables
-                id_prunings = self.prune_same_id(val)
+                id_prunings, dwo = GridVariable.prune_same_id(
+                    val, self.csp.get_all_vars())
 
-                self.num_decisions = self.num_decisions + 1
+                self.num_decisions += 1
 
-                status, prunings = propagator(self.csp, var)
-                self.num_prunings = self.num_prunings + len(prunings)
-
-                #print('  ' * level, "bt_recurse prop status = ", status)
-                #print('  ' * level, "bt_recurse prop pruned = ", prunings)
-
+                if not dwo:
+                    status, prunings = propagator(self.csp, var)
+                else:
+                    status = False
 
                 prunings.extend(id_prunings)
+
+                self.num_prunings += len(prunings)
+
+                # print('  ' * level, "bt_recurse prop status = ", status)
+                # print('  ' * level, "bt_recurse prop pruned = ", prunings)
 
                 if status:
                     if self.bt_recurse(propagator, level+1):
                         return True
 
-                #print('  ' * level, "bt_recurse restoring ", prunings)
+                # print('  ' * level, "bt_recurse restoring ", prunings)
                 self.restoreValues(prunings)
                 var.unassign()
 

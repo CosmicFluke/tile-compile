@@ -38,6 +38,34 @@ import itertools
 import sys
 
 
+class GridVariableIterator:
+    def __init__(self, collection):
+        self.collection = sorted(
+            collection,
+            key=lambda gv:
+                (0 if len(gv.get_exit_points()) > 0 else
+                 1 if 0 in gv.get_coords() else 2) + gv.get_cur_domain_size(),
+            reverse=True)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        for var in self.collection:
+            if len(var.get_exit_points()) > 0 or 0 in var.get_coords():
+                self.collection.remove(var)
+                return var
+        if self.collection:
+            return self.collection.pop()
+        raise StopIteration
+
+    def __len__(self):
+        return len(self.collection)
+
+    def pop(self):
+        return self.collection.pop()
+
+
 class Variable:
     """
     Class for defining CSP variables.  On initialization the
@@ -146,11 +174,10 @@ class Variable:
         """
         if self.is_assigned():
             return [self.get_assigned_value()]
-        if not self.cur_domain_flag:
-            return self.cur_domain_cache
-        self.cur_domain_cache = \
-            list(filter(self.cur_domain.get, self.cur_domain.keys()))
-        self.cur_domain_flag = False
+        if self.cur_domain_flag:
+            self.cur_domain_cache = \
+                list(filter(self.cur_domain.get, self.cur_domain.keys()))
+            self.cur_domain_flag = False
         return self.cur_domain_cache
 
     def in_cur_domain(self, value):
@@ -258,13 +285,14 @@ class Constraint:
         self.name = name
         self.constraint_function = function
         self.sat_mappings = set()
+        self.unsat_mappings = set()
 
     def get_scope(self):
         """
         :return: all variables that the constraint is over
         :rtype: set[Variable]
         """
-        return set(self.scope)
+        return GridVariableIterator(self.scope)
 
     def check(self):
         """
@@ -280,7 +308,8 @@ class Constraint:
         """
         return the number of unassigned variables in the constraint's scope
         """
-        return sum(map(lambda v: not v.is_assigned(), self.scope))
+        return len(list(filter(lambda v: not v.is_assigned(),
+                               self.scope)))
 
     def get_unassigned_vars(self):
         """
@@ -288,7 +317,19 @@ class Constraint:
            more expensive to get the list than to then number
         :rtype: set[Variable]
         """
-        return set(filter(lambda v: not v.is_assigned(), self.scope))
+        return GridVariableIterator(filter(lambda v: not v.is_assigned(),
+                                           self.scope))
+
+    def check_mapping(self, mapping):
+        frozen_mapping = frozenset(mapping)
+        if frozen_mapping in self.sat_mappings and \
+                frozen_mapping not in self.unsat_mappings:
+            return True
+        if self.constraint_function(dict(mapping)):
+            self.sat_mappings.add(frozen_mapping)
+            return True
+        self.unsat_mappings.add(frozen_mapping)
+        return False
 
     def has_support(self, var, val):
         """
@@ -298,7 +339,8 @@ class Constraint:
 
         :rtype: bool
         """
-        print("Var: {}\t\tVal: {}".format(var, val))
+
+        # print("Var: {}\t\tVal: {}".format(var, val))
         if var not in self.scope:
             return True
 
@@ -315,9 +357,7 @@ class Constraint:
             # Calls to constraint function given var-value mappings for each
             # assignment
             lambda assignment:
-                frozenset(zip(variables, assignment)) in self.sat_mappings or
-                self.constraint_function(dict(zip(variables, assignment))) or
-                self.sat_mappings.add(frozenset(zip(variables, assignment))),
+                self.check_mapping(frozenset(zip(variables, assignment))),
             # Product of all possible assignments given current domains
             itertools.product(*cur_domains)
         ))
